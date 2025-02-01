@@ -3,13 +3,9 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
-// CE and CSN pins for NRF24L01
-#define CE_PIN 10
-#define CSN_PIN 9
+RF24 radio(10, 9);  // Create RF24 object
 
-RF24 radio(CE_PIN, CSN_PIN);  // Create RF24 object
-
-const byte address[6] = "10001"; // Address for communication
+const byte address[6] = "00009"; // Address for communication
 
 void setup() {
   Serial.begin(9600);

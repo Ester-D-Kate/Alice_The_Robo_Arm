@@ -4,12 +4,9 @@
 #include <RF24.h>
 
 
-#define CE_PIN 9
-#define CSN_PIN 10
+RF24 radio(10, 9);  // Create RF24 object
 
-RF24 radio(CE_PIN, CSN_PIN);  // Create RF24 object
-
-const byte address[6] = "10001"; // Address for communication
+const byte address[6] = "00009"; // Address for communication
 
 void setup() {
   Serial.begin(9600);
@@ -25,6 +22,9 @@ void loop() {
     radio.read(&text, sizeof(text)); // Read data
     Serial.print("Received message: ");
     Serial.println(text); // Print received message
+    delay(1000);
+  }else{
+    Serial.println("No message received");
     delay(1000);
   }
 }
