@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"name": "Alice_reciever_nrf_24L01",
+			"path": ".."
+		},
+		{
+			"name": "Alice_controller_nrf_24L01",
+			"path": "../../Alice_controller_nrf_24L01"
+		}
+	],
+	"settings": {}
+}
