@@ -3,7 +3,10 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
-RF24 radio(10, 9);  // Create RF24 object
+const int CE = 10;
+const int CSN = 9;
+
+RF24 radio(CE, CSN);   // Create RF24 object
 
 const byte address[6] = "00009"; // Address for communication
 

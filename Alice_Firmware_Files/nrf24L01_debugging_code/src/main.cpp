@@ -10,8 +10,10 @@
 #include <SPI.h> 
 #include <RF24.h> 
 #include <printf.h> 
+const int CE = 9;
+const int CSN = 10;
 
-RF24 radio(9, 10); 
+RF24 radio(CE, CSN); 
 
 byte addresses[][6] = {"1Node", "2Node"}; 
 
