@@ -21,3 +21,5 @@ single motor with additional components like 2 x bc547 and 2 x AND Gates.
 
 
 Right now its in work in progress 
+
+[![wakatime](https://wakatime.com/badge/github/Ester-D-Kate/Alice_The_Robo_Arm.svg)](https://wakatime.com/badge/github/Ester-D-Kate/Alice_The_Robo_Arm)
