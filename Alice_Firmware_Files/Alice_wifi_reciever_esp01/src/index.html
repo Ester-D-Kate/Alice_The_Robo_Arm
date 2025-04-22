@@ -1,34 +1,9 @@
-#include <Arduino.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <math.h>
-
-ESP8266WebServer server(80);  // Web server on port 80
-
-String word_command = "-O-";
-String car_dir = "";
-String car_speed = "50";  
-String joint = "2"; 
-int A1 = 90, A2 = 90, A3 = 90, A4 = 90, A5 = 90, A6 = 90 , A7 = 90; // Initialize arm positions
-
-void handleButton() {
-  word_command = server.arg("btn");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleButtonRelease() {
-  word_command = "S";  // Stop command
-  server.send(200, "text/plain", "OK");
-}
-
-void handleSpeed() {
-  car_speed = server.arg("value");
-  server.send(200, "text/plain", "OK");
-}
-
-void handleRoot() {
-    static const char MAIN_page[] PROGMEM = R"rawliteral(
-      <html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>controller</title>
     <style>
         :root {
             --bg-color: #f0f0f0;
@@ -194,55 +169,6 @@ void handleRoot() {
             box-shadow: 0 2px #666;
             transition: background 0.08s, transform 0.08s, box-shadow 0.08s;
         }
-        .speed-control {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 15px;
-            background: var(--panel-color);
-            padding: 10px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .slider {
-            -webkit-appearance: none;
-            width: 100px;
-            height: 15px;
-            border-radius: 8px;
-            background: #d3d3d3;
-            outline: none;
-            margin: 0 10px;
-        }
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: red;
-            cursor: pointer;
-            border: 2px solid white;
-        }
-        .slider::-moz-range-thumb {
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: red;
-            cursor: pointer;
-            border: 2px solid white;
-        }
-        #speedValue {
-            min-width: 40px;
-            text-align: center;
-            font-weight: bold;
-        }
-        body.dark .speed-control {
-            background: var(--panel-color);
-            color: white;
-        }
-        body.dark .slider {
-            background: #555;
-        }
         @media (orientation: portrait) {
             body {
                 display: flex;
@@ -303,7 +229,7 @@ void handleRoot() {
             button {
                 width: 20vw;
                 height: 20vw;
-                font-size: 2em;
+                font-size: 1.4em;
                 border-radius: 1.2em;
                 box-sizing: border-box;
                 white-space: nowrap;
@@ -344,17 +270,12 @@ void handleRoot() {
 <body>
     <div class="extra_parent">
         <div class="extra_parent1">
-            <button id="extra1">1</button>
-            <button id="extra2">2</button>
-        </div>
-        <div class="speed-control">
-            <label for="speedSlider">Speed:</label>
-            <input type="range" id="speedSlider" min="0" max="100" value="50" class="slider">
-            <span id="speedValue">50%</span>
+            <button class="extra1">1</button>
+            <button class="extra2">2</button>
         </div>
         <div class="extra_parent2">
-            <button id="extra3">3</button>
-            <button id="extra4">4</button>
+            <button class="extra3">3</button>
+            <button class="extra4">4</button>
         </div>
     </div>
     <button class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode">-D-</button>
@@ -380,9 +301,6 @@ void handleRoot() {
     }
     function sendRelease() {
         fetch('/button_release');
-    }
-    function sendSpeed(value) {
-        fetch('/speed?value=' + encodeURIComponent(value));
     }
 
     // Joystick logic
@@ -463,10 +381,10 @@ void handleRoot() {
                 else if (btn.id === "Down") cmd = "D";
                 else if (btn.id === "Close") cmd = "C";
                 else if (btn.id === "Open") cmd = "O";
-                else if (btn.id === "extra1") cmd = "1";
-                else if (btn.id === "extra2") cmd = "2";
-                else if (btn.id === "extra3") cmd = "3";
-                else if (btn.id === "extra4") cmd = "4";
+                else if (btn.classList.contains("extra1")) cmd = "1";
+                else if (btn.classList.contains("extra2")) cmd = "2";
+                else if (btn.classList.contains("extra3")) cmd = "3";
+                else if (btn.classList.contains("extra4")) cmd = "4";
                 else if (btn.classList.contains("Stop")) cmd = "S";
                 else cmd = btn.textContent.trim();
                 sendCommand(cmd);
@@ -480,22 +398,6 @@ void handleRoot() {
                 sendRelease();
             });
         });
-
-        const speedSlider = document.getElementById('speedSlider');
-        const speedValue = document.getElementById('speedValue');
-        
-        // Initialize with default value
-        speedValue.textContent = speedSlider.value + "%";
-        
-        // Update when slider is moved
-        speedSlider.addEventListener('input', function() {
-            const value = speedSlider.value;
-            speedValue.textContent = value + "%";
-            sendSpeed(value);
-        });
-        
-        // Send the initial speed value
-        sendSpeed(speedSlider.value);
     });
 
     // Theme toggle logic
@@ -506,134 +408,4 @@ void handleRoot() {
         themeToggle.textContent = document.body.classList.contains('dark') ? '-O-' : '-D-';
     });
 </script>
-      </html>
-    )rawliteral";
-    server.send(200, "text/html", MAIN_page);
-  }
-
-void carCommandUpdate(){
-    if (word_command == "F") {
-        car_dir = "F";  // Forward
-    } else if (word_command == "B") {
-        car_dir = "B";  // Backward
-    } else if (word_command == "L") {
-        car_dir = "L";  // Left
-    } else if (word_command == "R") {
-        car_dir = "R";  // Right
-    } else if (word_command == "S") {
-        car_dir = "S";   // Stop command
-    }  
-}
-
-void jointUpdate(){
-    if (word_command == "1") {
-        joint = "1"; 
-    } else if (word_command == "2"){
-        joint = "2";
-    } else if (word_command == "3"){
-        joint = "3";
-    } else if (word_command == "4"){
-        joint = "4";
-    } 
-}
-
-void servoCommandUpdate(){
-    // Common controls for gripper (joint 1)
-    if (word_command == "C"){
-        A1 = constrain(A1 + 1, 0, 180);  // Increment with upper limit
-    } else if (word_command == "O"){
-        A1 = constrain(A1 - 1, 0, 180);  // Decrement with lower limit
-    }
-    
-    // Joint-specific up/down controls
-    if (word_command == "U" || word_command == "D") {
-        if (joint == "1"){
-            if (word_command == "U"){
-                A2 = constrain(A2 + 1, 0, 180);
-            } else if (word_command == "D"){
-                A2 = constrain(A2 - 1, 0, 180);
-            }
-        } else if (joint == "2"){
-            if (word_command == "U"){
-                A3 = constrain(A3 + 1, 0, 180);
-            } else if (word_command == "D"){
-                A3 = constrain(A3 - 1, 0, 180);
-            }
-        } else if (joint == "3"){
-            if (word_command == "U"){
-                A4 = constrain(A4 + 1, 0, 180);
-                A5 = constrain(A5 - 1, 0, 180);
-            } else if (word_command == "D"){
-                A4 = constrain(A4 - 1, 0, 180);
-                A5 = constrain(A5 + 1, 0, 180);
-            }
-        } else if (joint == "4"){
-            if (word_command == "U"){
-                A6 = constrain(A6 + 1, 0, 180);
-                A7 = constrain(A7 - 1, 0, 180);
-            } else if (word_command == "D"){
-                A6 = constrain(A6 - 1, 0, 180);
-                A7 = constrain(A7 + 1, 0, 180);
-            }
-        }
-    }
-    delay(50);
-}
-
-void kinematics(){
-    
-}
-
-void variableValueUpdate(){
-    carCommandUpdate();
-    if (word_command == "-O-"){
-        servoCommandUpdate();//will controll single servos joint at a time
-    }else if (word_command == "-D-"){
-        kinematics(); // will control servos angle calculations for eac servo simulatneously
-    }
-}
-
-void sendCommandToArduino(){
-    String Command = "";
-    Command = "<" + car_dir + "," + car_speed + "," + 
-              "j1," + String(A1) + "," + 
-              "j2," + String(A2) + "," + 
-              "j3," + String(A3) + "," + 
-              "j4," + String(A4) + "," + 
-              "j5," + String(A5) + "," + 
-              "j6," + String(A6) + "," +
-              "j7," + String(A7) + ">"; 
-    Serial.println(Command);  // Send command to Arduino via Serial
-}
-
-void setup() {
-  Serial.begin(115200);
-  // Set up the ESP8266 as an Access Point (AP)
-  WiFi.softAP("Alice", "access_alice");  // Create Wi-Fi AP with SSID and password
-  
-  // Print the IP address of ESP8266 to Serial Monitor
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.softAPIP());
-  
-  // Handle button presses for controlling LEDs
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/button", HTTP_GET, handleButton);
-  server.on("/button_release", HTTP_GET, handleButtonRelease);
-  server.on("/speed", HTTP_GET, handleSpeed);
-
-  // Start the web server
-  server.begin();
-  Serial.println("HTTP server started");
-}
-
-void loop() {
-  server.handleClient();  // Handle client requests
-
-  jointUpdate();
-
-  variableValueUpdate();  // Update variable values based on commands received
-  
-  sendCommandToArduino();  // Send command to Arduino
-  
-  delay(5);  // Delay to prevent flooding the serial port
-}
+</html>
