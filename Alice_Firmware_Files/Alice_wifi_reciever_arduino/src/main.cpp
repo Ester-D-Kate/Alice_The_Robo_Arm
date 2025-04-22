@@ -26,10 +26,10 @@ const int joint6Pin = 17;    // Pin for joint 6
 const int joint7Pin = 18;    // Pin for joint 7
 
 // Motor control pins for H-bridge
-const int motorLeftPin1 = 22;    // Left motor direction pin 1 (PWM for speed control)
-const int motorLeftPin2 = 23;    // Left motor direction pin 2 (PWM for speed control)
-const int motorRightPin1 = 24;   // Right motor direction pin 1 (PWM for speed control)
-const int motorRightPin2 = 25;   // Right motor direction pin 2 (PWM for speed control)
+const int motorLeftPin1 = 3;    // Left motor direction pin 1 (PWM for speed control)
+const int motorLeftPin2 = 5;    // Left motor direction pin 2 (PWM for speed control)
+const int motorRightPin1 = 6;   // Right motor direction pin 1 (PWM for speed control)
+const int motorRightPin2 = 9;   // Right motor direction pin 2 (PWM for speed control)
 
 // Joint positions
 int joint1Pos = 90;
@@ -41,7 +41,7 @@ int joint6Pos = 90;
 int joint7Pos = 90;
 
 // Car control variables
-String carDirection = "";
+String carDirection = "S";
 int carSpeed = 0;
 
 // PID control variables
@@ -72,7 +72,6 @@ void resetPID() {
     previous_error = 0;
 }
 
-// PID computation function
 float computePID(float setpoint, float current_value, float dt) {
     float error = setpoint - current_value;
     integral += error * dt; 
@@ -158,51 +157,8 @@ void setup() {
   Serial.println("Arduino initialized and ready to receive commands from ESP");
 }
 
-// Function to control car movement with PWM for H-bridge
-void controlCar(String direction, int speed) {
-  // Map speed (0-100) to PWM value (0-255)
-  int pwmSpeed = map(speed, 0, 100, 0, 255);
-  
-  // Set motor directions and speed based on command
-  if (direction == "F" || direction == "FWD" || direction == "FORWARD") {
-    // Move forward
-    analogWrite(motorLeftPin1, pwmSpeed);  // PWM for left motor forward
-    analogWrite(motorLeftPin2, 0);         // Left motor backward off
-    analogWrite(motorRightPin1, pwmSpeed); // PWM for right motor forward
-    analogWrite(motorRightPin2, 0);        // Right motor backward off
-  } 
-  else if (direction == "B" || direction == "BWD" || direction == "BACKWARD") {
-    // Move backward
-    analogWrite(motorLeftPin1, 0);         // Left motor forward off
-    analogWrite(motorLeftPin2, pwmSpeed);  // PWM for left motor backward
-    analogWrite(motorRightPin1, 0);        // Right motor forward off
-    analogWrite(motorRightPin2, pwmSpeed); // PWM for right motor backward
-  }
-  else if (direction == "L" || direction == "LEFT") {
-    // Turn left
-    analogWrite(motorLeftPin1, 0);         // Left motor forward off
-    analogWrite(motorLeftPin2, pwmSpeed);  // PWM for left motor backward
-    analogWrite(motorRightPin1, pwmSpeed); // PWM for right motor forward
-    analogWrite(motorRightPin2, 0);        // Right motor backward off
-  }
-  else if (direction == "R" || direction == "RIGHT") {
-    // Turn right
-    analogWrite(motorLeftPin1, pwmSpeed);  // PWM for left motor forward
-    analogWrite(motorLeftPin2, 0);         // Left motor backward off
-    analogWrite(motorRightPin1, 0);        // Right motor forward off
-    analogWrite(motorRightPin2, pwmSpeed); // PWM for right motor backward
-  }
-  else if (direction == "S" || direction == "STOP") {
-    // Stop all motors
-    analogWrite(motorLeftPin1, 0);
-    analogWrite(motorLeftPin2, 0);
-    analogWrite(motorRightPin1, 0);
-    analogWrite(motorRightPin2, 0);
-  }
-}
-
 // Function to control car movement with PWM for H-bridge and PID correction
-void controlCarWithPID(String direction, int speed, float pidCorrection) {
+void controlCar(String direction, int speed, float pidCorrection = 0) {
   // Map speed (0-100) to PWM value (0-255)
   int pwmSpeed = map(speed, 0, 100, 0, 255);
   int leftSpeed, rightSpeed;
@@ -229,14 +185,14 @@ void controlCarWithPID(String direction, int speed, float pidCorrection) {
     analogWrite(motorRightPin2, rightSpeed);  // PWM for right motor backward
   }
   else if (direction == "L" || direction == "LEFT") {
-    // Turn left
+    // Turn left (no PID correction needed)
     analogWrite(motorLeftPin1, 0);         // Left motor forward off
     analogWrite(motorLeftPin2, pwmSpeed);  // PWM for left motor backward
     analogWrite(motorRightPin1, pwmSpeed); // PWM for right motor forward
     analogWrite(motorRightPin2, 0);        // Right motor backward off
   }
   else if (direction == "R" || direction == "RIGHT") {
-    // Turn right
+    // Turn right (no PID correction needed)
     analogWrite(motorLeftPin1, pwmSpeed);  // PWM for left motor forward
     analogWrite(motorLeftPin2, 0);         // Left motor backward off
     analogWrite(motorRightPin1, 0);        // Right motor forward off
@@ -279,8 +235,8 @@ void processCommand(String command) {
   carSpeed = command.substring(commaIndex, nextCommaIndex).toInt();
   commaIndex = nextCommaIndex + 1;
   
-  // Apply car control with direction and speed
-  controlCar(carDirection, carSpeed);
+  // We'll apply motor control in the main loop with PID correction
+  // This is just parsing the command - actual motor control happens in loop()
   
   // Joint 1 label
   nextCommaIndex = command.indexOf(',', commaIndex);
@@ -471,7 +427,7 @@ void loop() {
       Serial.println(desired_angle);
     }
     pidOutput = computePID(desired_angle, RotationalAngle, dt);
-    controlCarWithPID(carDirection, carSpeed, pidOutput);
+    controlCar(carDirection, carSpeed, pidOutput);
   } 
   else if (carDirection == "B" || carDirection == "BWD" || carDirection == "BACKWARD") {
     if (!isBDesiredAngleSet) { 
@@ -483,7 +439,7 @@ void loop() {
     }
     // Note: For backward motion, we invert the PID correction
     pidOutput = computePID(desired_angle, RotationalAngle, dt);
-    controlCarWithPID(carDirection, carSpeed, pidOutput);
+    controlCar(carDirection, carSpeed, pidOutput);
   }
   else {
     // For other directions (LEFT, RIGHT, STOP), use standard control without PID
