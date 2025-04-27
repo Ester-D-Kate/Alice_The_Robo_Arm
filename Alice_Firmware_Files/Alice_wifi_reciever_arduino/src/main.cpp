@@ -29,7 +29,7 @@ const int joint7Pin = 18;    // Pin for joint 7
 const int motorLeftPin1 = 3;    // Left motor direction pin 1 (PWM for speed control)
 const int motorLeftPin2 = 5;    // Left motor direction pin 2 (PWM for speed control)
 const int motorRightPin1 = 6;   // Right motor direction pin 1 (PWM for speed control)
-const int motorRightPin2 = 9;   // Right motor direction pin 2 (PWM for speed control)
+const int motorRightPin2 = 11;   // Right motor direction pin 2 (PWM for speed control)
 
 // Joint positions
 int joint1Pos = 90;
@@ -89,7 +89,7 @@ float computePID(float setpoint, float current_value, float dt) {
 }
 
 void setup() {
-  Serial.begin(115200);  // Start serial communication at the same baud rate as ESP8266
+  Serial.begin(57600);  // Start serial communication at the same baud rate as ESP8266
   
   // Initialize I2C for MPU6050
   Wire.begin();
@@ -184,14 +184,14 @@ void controlCar(String direction, int speed, float pidCorrection = 0) {
     analogWrite(motorRightPin1, 0);           // Right motor forward off
     analogWrite(motorRightPin2, rightSpeed);  // PWM for right motor backward
   }
-  else if (direction == "L" || direction == "LEFT") {
+  else if (direction == "R" || direction == "RIGHT"){
     // Turn left (no PID correction needed)
     analogWrite(motorLeftPin1, 0);         // Left motor forward off
     analogWrite(motorLeftPin2, pwmSpeed);  // PWM for left motor backward
     analogWrite(motorRightPin1, pwmSpeed); // PWM for right motor forward
     analogWrite(motorRightPin2, 0);        // Right motor backward off
   }
-  else if (direction == "R" || direction == "RIGHT") {
+  else if (direction == "L" || direction == "LEFT") {
     // Turn right (no PID correction needed)
     analogWrite(motorLeftPin1, pwmSpeed);  // PWM for left motor forward
     analogWrite(motorLeftPin2, 0);         // Left motor backward off
@@ -211,11 +211,18 @@ void processCommand(String command) {
   // Remove angle brackets and any newline character
   command.trim();
   
-  if (command.startsWith("<") && command.endsWith(">")) {
-    command = command.substring(1, command.length() - 1);
-  } else {
-    // Not in the correct format
+  // Check if command has proper structure
+  if (!command.startsWith("<") || !command.endsWith(">") || command.length() < 3) {
     Serial.println("Invalid command format");
+    return;
+  }
+  
+  // Remove angle brackets
+  command = command.substring(1, command.length() - 1);
+  
+  // Check if there are at least 2 commas (direction, speed, and at least one joint)
+  if (command.indexOf(',') == -1 || command.indexOf(',', command.indexOf(',') + 1) == -1) {
+    Serial.println("Invalid command format - missing required components");
     return;
   }
   
@@ -226,17 +233,32 @@ void processCommand(String command) {
   // Get car direction
   nextCommaIndex = command.indexOf(',', commaIndex);
   if (nextCommaIndex == -1) return;
-  carDirection = command.substring(commaIndex, nextCommaIndex);
+  String dirStr = command.substring(commaIndex, nextCommaIndex);
+  if (dirStr.length() > 0) {
+    carDirection = dirStr;
+  }
   commaIndex = nextCommaIndex + 1;
   
   // Get car speed
   nextCommaIndex = command.indexOf(',', commaIndex);
   if (nextCommaIndex == -1) return;
-  carSpeed = command.substring(commaIndex, nextCommaIndex).toInt();
+  int speedVal = command.substring(commaIndex, nextCommaIndex).toInt();
+  if (speedVal >= 0 && speedVal <= 100) {
+    carSpeed = speedVal;
+  }
   commaIndex = nextCommaIndex + 1;
   
-  // We'll apply motor control in the main loop with PID correction
   // This is just parsing the command - actual motor control happens in loop()
+  
+  // Skip if there's a problem with the remaining part of the command
+  if (command.indexOf("j1,") == -1) {
+    // Partial command - just use the car controls
+    Serial.print("Partial command - Car: ");
+    Serial.print(carDirection);
+    Serial.print(",");
+    Serial.println(carSpeed);
+    return;
+  }
   
   // Joint 1 label
   nextCommaIndex = command.indexOf(',', commaIndex);

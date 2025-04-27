@@ -6,7 +6,7 @@
 ESP8266WebServer server(80);  // Web server on port 80
 
 String word_command = "-O-";
-String car_dir = "";
+String car_dir = "S";
 String car_speed = "50";  
 String joint = "2"; 
 int A1 = 90, A2 = 90, A3 = 90, A4 = 90, A5 = 90, A6 = 90 , A7 = 90; // Initialize arm positions
@@ -374,14 +374,31 @@ void handleRoot() {
 </div>
 
 <script>
+    // Flag to track if user has interacted with the page
+    let userInteracted = false;
+
+    // Mark that user has interacted with the page
+    document.addEventListener('pointerdown', function() {
+        userInteracted = true;
+    });
+
     // Helper to send commands to ESP8266
     function sendCommand(cmd) {
+        // Only send commands if user has interacted with the page
+        if (!userInteracted && cmd !== "S") {
+            console.log("Ignoring initial command: " + cmd);
+            return;
+        }
         fetch('/button?btn=' + encodeURIComponent(cmd));
     }
+    
     function sendRelease() {
+        if (!userInteracted) return;
         fetch('/button_release');
     }
+    
     function sendSpeed(value) {
+        if (!userInteracted) return;
         fetch('/speed?value=' + encodeURIComponent(value));
     }
 
@@ -586,11 +603,7 @@ void kinematics(){
 
 void variableValueUpdate(){
     carCommandUpdate();
-    if (word_command == "-O-"){
-        servoCommandUpdate();//will controll single servos joint at a time
-    }else if (word_command == "-D-"){
-        kinematics(); // will control servos angle calculations for eac servo simulatneously
-    }
+    servoCommandUpdate();  
 }
 
 void sendCommandToArduino(){
@@ -607,7 +620,7 @@ void sendCommandToArduino(){
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(57600);
   // Set up the ESP8266 as an Access Point (AP)
   WiFi.softAP("Alice", "access_alice");  // Create Wi-Fi AP with SSID and password
   
@@ -624,6 +637,10 @@ void setup() {
   // Start the web server
   server.begin();
   Serial.println("HTTP server started");
+  
+  // Send a valid initial command to Arduino to prevent "invalid command" errors
+  delay(1000); // Wait for serial to be ready
+  sendCommandToArduino();
 }
 
 void loop() {
@@ -635,5 +652,5 @@ void loop() {
   
   sendCommandToArduino();  // Send command to Arduino
   
-  delay(5);  // Delay to prevent flooding the serial port
+  delay(10);  // Delay to prevent flooding the serial port
 }
