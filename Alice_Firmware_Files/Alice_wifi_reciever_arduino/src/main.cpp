@@ -17,13 +17,13 @@ Servo joint7Servo; // Joint 7
 Adafruit_MPU6050 mpu;
 
 // Define pins for all servos
-const int joint1Pin = 12;    // Pin for joint 1
-const int joint2Pin = 13;    // Pin for joint 2
-const int joint3Pin = 14;    // Pin for joint 3
-const int joint4Pin = 15;    // Pin for joint 4
-const int joint5Pin = 16;    // Pin for joint 5
-const int joint6Pin = 17;    // Pin for joint 6
-const int joint7Pin = 18;    // Pin for joint 7
+const int joint1Pin = 14;    // Pin for joint 1
+const int joint2Pin = 4;    // Pin for joint 2
+const int joint3Pin = 15;    // Pin for joint 3
+const int joint4Pin = 16; // Pin for joint 4
+const int joint5Pin = 17;    // Pin for joint 5
+const int joint6Pin = 12;    // Pin for joint 6
+const int joint7Pin = 13;    // Pin for joint 7
 
 // Motor control pins for H-bridge
 const int motorLeftPin1 = 3;    // Left motor direction pin 1 (PWM for speed control)
