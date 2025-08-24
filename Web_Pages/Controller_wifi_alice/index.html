@@ -396,6 +396,51 @@
     const speedSlider = document.getElementById('speedSlider');
     const speedValue = document.getElementById('speedValue');
     
+    function startArmMovement(cmd) {
+        if (buttonIntervals[cmd]) return;
+        
+        console.log('Starting arm movement:', cmd);
+        sendArmCommand(cmd);
+        
+        buttonIntervals[cmd] = setInterval(() => {
+            sendArmCommand(cmd);
+            console.log('Repeating arm command:', cmd);
+        }, 200);
+    }
+    
+    function stopArmMovement(cmd) {
+        console.log('Stopping arm movement:', cmd);
+        
+        if (buttonIntervals[cmd]) {
+            clearInterval(buttonIntervals[cmd]);
+            delete buttonIntervals[cmd];
+        }
+        
+        sendArmCommand("S");
+        console.log('Sent STOP command to arm');
+    }
+    
+    // **FIXED: Global function to handle button release**
+    function handleButtonRelease() {
+        console.log('Global button release triggered');
+        
+        pressedButtons.forEach(btn => {
+            btn.classList.remove('pressed');
+            
+            const cmd = btn.dataset.cmd;
+            const topic = btn.dataset.topic;
+            
+            console.log('Releasing button:', cmd, topic);
+            
+            if (topic === 'arm') {
+                stopArmMovement(cmd);
+            }
+        });
+        
+        pressedButtons.clear();
+        console.log('All pressed buttons cleared');
+    }
+    
     // Connect to MQTT Broker
     function connectMQTT() {
         statusElement.textContent = 'Connecting to MQTT...';
