@@ -1,0 +1,193 @@
+[33mcommit a2c56c5527cf1015d9dff5124a55953e87af5308[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 20:34:32 2025 +0530
+
+    new mqtt page added
+
+[33mcommit dde15226f1879716b9230671a1822d56aa5c1de1[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 20:28:29 2025 +0530
+
+    new mqtt page added
+
+[33mcommit 5d02ca39d58d1ed1546ad6c5dbde03e69b75ae9f[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 20:18:48 2025 +0530
+
+    new mqtt page added
+
+[33mcommit 04f3a20fc48aef11fead0b567cd626e38b4df815[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 20:05:01 2025 +0530
+
+    new mqtt page added
+
+[33mcommit d55432c09f5282a6f266c7005b966e3afc3c919d[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 18:20:14 2025 +0530
+
+    new mqtt page added
+
+[33mcommit c7614feca9a975a2393dce20094871a5f0ece0b6[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 18:11:42 2025 +0530
+
+    new mqtt page added
+
+[33mcommit efdeec6fe8cec658162524eddcce25c2a07e3c97[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 18:07:49 2025 +0530
+
+    new mqtt page added
+
+[33mcommit 7ff563d234edd92861b131122052945c60c8fee3[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 17:51:10 2025 +0530
+
+    new mqtt page added
+
+[33mcommit 6869376164fd1863121b8eb7da1c25ee7852dad9[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Aug 24 17:46:16 2025 +0530
+
+    new mqtt page added
+
+[33mcommit 3ac23e9dad804467615ceb9a9d2ac3f5bb982be7[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun May 4 03:47:16 2025 +0530
+
+    made channges in reciever arduinofor servo and pwm issue
+
+[33mcommit 0b1523969f205fd6ea6c744e0830a492f9bd48e4[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Mon Apr 28 05:22:56 2025 +0530
+
+    finished final code for arduino and esp also added what was the problem in readme
+
+[33mcommit e7e5961e455e62e4231c85378ad0bb9464b2fe7b[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Wed Apr 23 04:04:22 2025 +0530
+
+    updates
+
+[33mcommit 7a6b1d0021b5d49e524e02090075b41cbca035bf[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Wed Apr 23 02:15:29 2025 +0530
+
+    added arduino code for control and esp code without kinametics
+
+[33mcommit 824ac565f1603abc4b8b47ed9adc57cd6cef060d[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Fri Apr 18 16:37:05 2025 +0530
+
+    moved files in correct folder
+
+[33mcommit 1a48c32978e5dde94b922d7ffc057eb175af5198[m
+Merge: 267de4e 7d05e63
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Fri Apr 18 16:28:57 2025 +0530
+
+    Merge branch 'main' of github.com:Ester-D-Kate/Alice_The_Robo_Arm
+
+[33mcommit 267de4e587aa6e48a000131878aef91d87f4a0a9[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Fri Apr 18 16:28:37 2025 +0530
+
+    added controll pannel web page and esp01 wifi hosted controller
+
+[33mcommit 7d05e6311a1baa020ee7c0c5c88c7b7069003edc[m
+Author: Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Mon Mar 3 21:19:15 2025 +0530
+
+    Update README.md
+
+[33mcommit fff3df1f777293acc432ea35f47e51a96c39b07c[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Feb 16 05:10:41 2025 +0530
+
+    removed uneccessary files
+
+[33mcommit a9639410cb370350427f4fad612b13bbe46d9aa5[m
+Merge: fd7cac3 7a18056
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Feb 16 05:05:34 2025 +0530
+
+    Merge branch 'main' of github.com:Ester-D-Kate/Alice_The_Robo_Arm
+
+[33mcommit fd7cac3b247024bd1b041da42ae92f9b91ba1865[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Feb 16 05:01:07 2025 +0530
+
+    pin has been selected acording to circuit
+
+[33mcommit 066762fc62dc01217e243e2e353cf5d5f694411f[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Feb 16 04:44:39 2025 +0530
+
+    \
+
+[33mcommit 7a180563a48e830ddf78012100d1e915e7508bf4[m
+Author: Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Feb 9 05:50:41 2025 +0530
+
+    Update README.md
+
+[33mcommit 7d7b517a8e7c39fb637f3e1b3b4cd226ee80af1f[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Feb 2 02:26:29 2025 +0530
+
+    added the nrf24L01 checking code
+
+[33mcommit 1a4e63b3f2e934ffb3a70235d1e845f9a50196fa[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Mon Jan 27 00:24:15 2025 +0530
+
+    added controler and reciever code with nrf sensor
+
+[33mcommit 7326fe24ffc06d72b278d42cea6373ba9412ec14[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 05:26:56 2025 +0530
+
+    maintaining file structure
+
+[33mcommit d13d08c269af84046952db3ce866fba14925381f[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 05:18:59 2025 +0530
+
+    changed the file name
+
+[33mcommit 7c834faa959f4e0b6eb7b8f36e2423bcdf35e7a5[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 05:14:21 2025 +0530
+
+    added test file in alice code
+
+[33mcommit 5518a12491971a1715e3f67561cb3a809337729d[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 05:10:13 2025 +0530
+
+    removed the file i had added for testing
+
+[33mcommit 94c450fc938e96c0a4c8d66e1612cb5c1eb84d65[m
+Author: Ester-D-Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 05:00:01 2025 +0530
+
+    trying to add file to github
+
+[33mcommit 70548fadec06d070bf481ef8a3dcbd0044199a3c[m
+Author: Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 03:53:10 2025 +0530
+
+    Update README.md
+
+[33mcommit 7043c24fd98e4d45e61bf1a5537029a0a8a28849[m
+Author: Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 03:52:46 2025 +0530
+
+    Update README.md
+
+[33mcommit 348baaa458351e7b7873b703036c79364339d170[m
+Author: Kate <148463665+Ester-D-Kate@users.noreply.github.com>
+Date:   Sun Jan 26 03:51:49 2025 +0530
+
+    Initial commit
