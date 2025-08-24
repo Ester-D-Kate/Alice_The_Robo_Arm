@@ -3,15 +3,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>controller</title>
-    <link rel="stylesheet" href="style.css"> 
-    <script src="script.js" defer></script>       
+    <title>Zero Robot Controller</title>
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --panel-color: #e0e0e0;
+            --button-bg: #fff;
+            --button-text: #000;
+            --joystick-knob: #888;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: var(--bg-color);
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            z-index: 1001;
+        }
+        .status-connected { background: #28a745; }
+        .status-connecting { background: #ffc107; color: black; }
+        .status-disconnected { background: #dc3545; }
+        
+        .extra_parent {
+            display: flex;
+            position: absolute;
+            top: 15vh;
+            justify-content: center;
+            align-items: center;
+            flex-direction: row;
+            width: 100vw;
+        }
+        .extra_parent1 {
+            display: flex;
+            position: absolute;
+            flex-direction: column;
+            justify-content: center;
+            left: 8.5vw;
+            align-items: center;
+            flex-direction: row;
+        }
+        .extra_parent2 {
+            display: flex;
+            position: absolute;
+            flex-direction: column;
+            justify-content: center;
+            right: 8.5vw;
+            align-items: center;
+            flex-direction: row;
+        }
+        .speed-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 15px;
+            background: var(--panel-color);
+            padding: 10px 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .slider {
+            -webkit-appearance: none;
+            width: 100px;
+            height: 15px;
+            border-radius: 8px;
+            background: #d3d3d3;
+            outline: none;
+            margin: 0 10px;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: red;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: red;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+        #speedValue {
+            min-width: 40px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .container2 {
+            position: absolute;
+            right: 2vw;
+            top: 30%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 10px;
+        }
+        button {
+            width: 10vw;
+            height: 20vh;
+            font-size: 2em;
+            margin: 5px;
+            border-radius: 2vw;
+            background: var(--button-bg);
+            color: var(--button-text);
+            box-shadow: 0 2px 8px #aaa;
+            border: none;
+            cursor: pointer;
+        }
+        button:active,
+        button.pressed {
+            background-color: #cccccc;
+            transform: scale(0.96);
+            box-shadow: 0 2px #666;
+        }
+        .Stop {
+            background-color: red !important;
+            color: #fff;
+        }
+        .joystick-container {
+            position: absolute;
+            left: 10vw;
+            top: 65%;
+            transform: translateY(-50%);
+            width: 20vw;
+            height: 40vh;
+            min-width: 120px;
+            min-height: 120px;
+            max-width: 350px;
+            max-height: 350px;
+            background: #000;
+            border-radius: 2vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px #aaa;
+            touch-action: none;
+        }
+        .joystick-knob {
+            width: 7vw;
+            height: 14vh;
+            min-width: 60px;
+            min-height: 60px;
+            max-width: 140px;
+            max-height: 140px;
+            background: red;
+            border: 4px solid #ffffff;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            transition: background 0.1s, border-color 0.1s;
+            touch-action: none;
+            box-shadow: 0 10px 15px #a19898;
+        }
+        .theme-toggle-btn {
+            position: fixed;
+            left: 2vw;
+            bottom: 2vh;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #222;
+            color: #fff;
+            border: none;
+            font-size: 1.5em;
+            box-shadow: 0 2px 8px #aaa;
+            cursor: pointer;
+            z-index: 1000;
+            opacity: 0.7;
+            transition: background 0.2s, opacity 0.2s;
+        }
+        .theme-toggle-btn:hover {
+            background: #444;
+            opacity: 1;
+        }
+        
+        /* Dark mode variables */
+        body.dark {
+            --bg-color: #181818;
+            --panel-color: #232323;
+            --button-bg: #222;
+            --button-text: #fff;
+        }
+        body.dark .joystick-container {
+            background: #fff;
+            box-shadow: 0 2px 8px #111;
+        }
+        body.dark .joystick-knob {
+            background: red;
+            border: 4px solid #000;
+            box-shadow: 0 2px 8px #111;
+        }
+        body.dark button {
+            background: #222;
+            color: #fff;
+            box-shadow: 0 2px 8px #111;
+        }
+        body.dark .Stop {
+            background-color: red !important;
+            color: #fff;
+        }
+        body.dark button:active,
+        body.dark button.pressed {
+            background-color: #cccccc !important;
+            color: #000;
+            transform: scale(0.96);
+            box-shadow: 0 2px #666;
+        }
+        body.dark .speed-control {
+            background: var(--panel-color);
+            color: white;
+        }
+        body.dark .slider {
+            background: #555;
+        }
+        
+        @media (orientation: portrait) {
+            body {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background-color: var(--bg-color);
+                position: relative;
+                overflow: hidden;
+            }
+            .extra_parent {
+                display: flex;
+                position: absolute;
+                top: 5vh;
+                justify-content: center;
+                align-items: center;
+                flex-direction: row;
+                width: 100vw;
+            }
+            .extra_parent1 {
+                display: flex;
+                position: absolute;
+                flex-direction: row;
+                justify-content: center;
+                left: 2vw;
+                align-items: center;
+            }
+            .extra_parent2 {
+                display: flex;
+                position: absolute;
+                flex-direction: row;
+                justify-content: center;
+                right: 2vw;
+                align-items: center;
+            }
+            .speed-control {
+                position: absolute;
+                top: 12vh;
+                left: 50%;
+                transform: translateX(-50%);
+                width: fit-content;
+                padding: 8px 12px;
+                margin: 0;
+            }
+            .RL {
+                display: flex;
+                flex-direction: row;
+                justify-content: center;
+                align-items: center;
+            }
+            .container2 {
+                position: absolute;
+                left: 50%;
+                top: 23%;
+                transform: translateX(-50%);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                margin: 10px;
+                height: fit-content;
+                width: fit-content;
+            }
+            button {
+                width: 16vw;
+                height: 16vw;
+                font-size: 1.2em;
+                border-radius: 1.2em;
+                box-sizing: border-box;
+                white-space: nowrap;
+                min-width: 60px;
+                min-height: 60px;
+            }
+            .joystick-container {
+                position: absolute;
+                left: 50%;
+                top: 75vh;
+                transform: translate(-50%, -50%);
+                width: 28vh;
+                aspect-ratio: 1/1;
+                height: auto;
+                min-width: 120px;
+                min-height: 120px;
+                max-width: 280px;
+                max-height: 280px;
+            }
+            .joystick-knob {
+                width: 12vh;
+                aspect-ratio: 1/1;
+                height: auto;
+                min-width: 50px;
+                min-height: 50px;
+                max-width: 120px;
+                max-height: 120px;
+            }
+            .parent{
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                flex-direction: column;
+                height: 100vh;
+                width: 100vw;
+            }
+        }
+    </style>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
+    <div id="connectionStatus" class="connection-status status-connecting">Connecting...</div>
+    
     <div class="extra_parent">
         <div class="extra_parent1">
-            <button class="extra1">1</button>
-            <button class="extra2">2</button>
+            <button class="extra1">Wrist L</button>
+            <button class="extra2">Claw UP</button>
         </div>
         <div class="speed-control">
             <label for="speedSlider">Speed:</label>
@@ -19,24 +359,316 @@
             <span id="speedValue">50%</span>
         </div>
         <div class="extra_parent2">
-            <button class="extra3">3</button>
-            <button class="extra4">4</button>
+            <button class="extra3">Claw DN</button>
+            <button class="extra4">Wrist R</button>
         </div>
     </div>
     <button class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode">-D-</button>
-<div class="parent">
-    <div class="joystick-container" id="joystick">
-        <div class="joystick-knob" id="joystickKnob"></div>
-    </div>
-    <div class="container2">
-        <button id="Up">U</button>
-        <div class="RL">
-           <button id="Close"> > < </button>
-           <button id="Stop1" class="Stop">S</button>
-           <button id="Open"> < > </button>
+    
+    <div class="parent">
+        <div class="joystick-container" id="joystick">
+            <div class="joystick-knob" id="joystickKnob"></div>
         </div>
-        <button id="Down">D</button>
+        <div class="container2">
+            <button id="Up">ARM UP</button>
+            <div class="RL">
+               <button id="Close">CLOSE</button>
+               <button id="Stop1" class="Stop">STOP</button>
+               <button id="Open">OPEN</button>
+            </div>
+            <button id="Down">ARM DN</button>
+        </div>
     </div>
-</div>
-</body>
+
+<script>
+    // MQTT Configuration for your Zero Robot
+    const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+    const CAR_TOPIC = 'alice/zero/car/command';
+    const ARM_TOPIC = 'alice/zero/arm/command';
+    const STATUS_TOPIC = 'alice/zero/robot/status';
+    
+    // MQTT Client
+    let mqttClient = null;
+    let isConnected = false;
+    
+    // UI Elements
+    const statusElement = document.getElementById('connectionStatus');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    
+    // Connect to MQTT Broker
+    function connectMQTT() {
+        statusElement.textContent = 'Connecting to MQTT...';
+        statusElement.className = 'connection-status status-connecting';
+        
+        try {
+            mqttClient = mqtt.connect(MQTT_BROKER, {
+                keepalive: 30,
+                reconnectPeriod: 1000,
+                connectTimeout: 5000,
+            });
+            
+            mqttClient.on('connect', () => {
+                console.log('Connected to MQTT broker');
+                isConnected = true;
+                statusElement.textContent = 'Connected to Zero Robot';
+                statusElement.className = 'connection-status status-connected';
+                
+                // Subscribe to status updates
+                mqttClient.subscribe(STATUS_TOPIC, (err) => {
+                    if (err) console.error('Subscribe error:', err);
+                });
+            });
+            
+            mqttClient.on('error', (err) => {
+                console.error('MQTT Error:', err);
+                isConnected = false;
+                statusElement.textContent = 'Connection Failed';
+                statusElement.className = 'connection-status status-disconnected';
+            });
+            
+            mqttClient.on('offline', () => {
+                console.log('MQTT offline');
+                isConnected = false;
+                statusElement.textContent = 'Disconnected';
+                statusElement.className = 'connection-status status-disconnected';
+            });
+            
+            mqttClient.on('reconnect', () => {
+                console.log('MQTT reconnecting...');
+                statusElement.textContent = 'Reconnecting...';
+                statusElement.className = 'connection-status status-connecting';
+            });
+            
+            mqttClient.on('message', (topic, message) => {
+                if (topic === STATUS_TOPIC) {
+                    try {
+                        const status = JSON.parse(message.toString());
+                        console.log('Robot Status:', status);
+                    } catch (e) {
+                        console.error('Failed to parse status:', e);
+                    }
+                }
+            });
+            
+        } catch (error) {
+            console.error('MQTT connection error:', error);
+            isConnected = false;
+            statusElement.textContent = 'Connection Error';
+            statusElement.className = 'connection-status status-disconnected';
+        }
+    }
+    
+    // Send MQTT commands
+    function sendCarCommand(command, speed = null) {
+        if (!isConnected || !mqttClient) {
+            console.warn('MQTT not connected');
+            return;
+        }
+        
+        const payload = {
+            cmd: command,
+            timestamp: Date.now()
+        };
+        
+        if (speed !== null) {
+            payload.speed = speed;
+        }
+        
+        mqttClient.publish(CAR_TOPIC, JSON.stringify(payload));
+        console.log('Car Command:', payload);
+    }
+    
+    function sendArmCommand(command, joint = null) {
+        if (!isConnected || !mqttClient) {
+            console.warn('MQTT not connected');
+            return;
+        }
+        
+        const payload = {
+            cmd: command,
+            timestamp: Date.now()
+        };
+        
+        if (joint !== null) {
+            payload.joint = joint;
+        }
+        
+        mqttClient.publish(ARM_TOPIC, JSON.stringify(payload));
+        console.log('Arm Command:', payload);
+    }
+    
+    // Joystick logic
+    const joystick = document.getElementById('joystick');
+    const knob = document.getElementById('joystickKnob');
+    let dragging = false;
+    let center = { x: 0, y: 0 };
+    let maxDist = 0;
+    let lastDir = "S";
+    
+    function getDirection(dx, dy) {
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        
+        if (distance < maxDist * 0.3) return "S"; // Center = Stop
+        if (angle >= -45 && angle < 45) return "R";   // Right
+        if (angle >= 45 && angle < 135) return "B";   // Backward  
+        if (angle >= -135 && angle < -45) return "F"; // Forward
+        return "L"; // Left
+    }
+    
+    function setKnob(x, y) {
+        knob.style.left = x + 'px';
+        knob.style.top = y + 'px';
+    }
+    
+    function resetKnob() {
+        setKnob(joystick.clientWidth/2, joystick.clientHeight/2);
+    }
+    
+    joystick.addEventListener('pointerdown', function(e) {
+        dragging = true;
+        const rect = joystick.getBoundingClientRect();
+        center = { x: rect.width/2, y: rect.height/2 };
+        maxDist = rect.width/2 - knob.offsetWidth/2;
+        moveKnob(e);
+    });
+    
+    window.addEventListener('pointermove', function(e) {
+        if (!dragging) return;
+        moveKnob(e);
+    });
+    
+    window.addEventListener('pointerup', function(e) {
+        if (!dragging) return;
+        dragging = false;
+        resetKnob();
+        lastDir = "S";
+        sendCarCommand("S");
+    });
+    
+    function moveKnob(e) {
+        const rect = joystick.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        let y = e.clientY - rect.top;
+        let dx = x - center.x;
+        let dy = y - center.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > maxDist) {
+            dx = dx * maxDist / dist;
+            dy = dy * maxDist / dist;
+        }
+        setKnob(center.x + dx, center.y + dy);
+        const dir = getDirection(dx, dy);
+        if (dir !== lastDir) {
+            lastDir = dir;
+            const currentSpeed = parseInt(speedSlider.value);
+            sendCarCommand(dir, currentSpeed);
+        }
+    }
+    
+    // Initialize everything when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize MQTT connection
+        connectMQTT();
+        
+        // Initialize joystick knob position
+        resetKnob();
+        
+        // Speed slider
+        speedSlider.addEventListener('input', function() {
+            const value = speedSlider.value;
+            speedValue.textContent = value + '%';
+        });
+        
+        // Button event listeners
+        document.querySelectorAll('button').forEach(function(btn) {
+            btn.addEventListener('pointerdown', function() {
+                btn.classList.add('pressed');
+                
+                let cmd = "";
+                let isCarCommand = false;
+                let isArmCommand = false;
+                
+                // Car movement commands (joystick alternative)
+                if (btn.id === "Up") {
+                    cmd = "U";
+                    isArmCommand = true;
+                } else if (btn.id === "Down") {
+                    cmd = "D"; 
+                    isArmCommand = true;
+                } else if (btn.id === "Close") {
+                    cmd = "C";
+                    isArmCommand = true;
+                } else if (btn.id === "Open") {
+                    cmd = "O";
+                    isArmCommand = true;
+                } else if (btn.classList.contains("extra1")) {
+                    cmd = "1"; // Wrist Left
+                    isArmCommand = true;
+                } else if (btn.classList.contains("extra2")) {
+                    cmd = "2"; // Claw UP
+                    isArmCommand = true;
+                } else if (btn.classList.contains("extra3")) {
+                    cmd = "3"; // Claw DOWN
+                    isArmCommand = true;
+                } else if (btn.classList.contains("extra4")) {
+                    cmd = "4"; // Wrist Right
+                    isArmCommand = true;
+                } else if (btn.classList.contains("Stop") || btn.id === "Stop1") {
+                    cmd = "S";
+                    isCarCommand = true;
+                } else {
+                    cmd = btn.textContent.trim();
+                }
+                
+                // Send appropriate command
+                if (isCarCommand) {
+                    const currentSpeed = parseInt(speedSlider.value);
+                    sendCarCommand(cmd, currentSpeed);
+                } else if (isArmCommand) {
+                    sendArmCommand(cmd);
+                }
+            });
+            
+            btn.addEventListener('pointerup', function() {
+                btn.classList.remove('pressed');
+                // Send stop command for continuous actions
+                if (!btn.classList.contains("Stop") && btn.id !== "Stop1") {
+                    if (btn.id === "Up" || btn.id === "Down" || 
+                        btn.classList.contains("extra1") || btn.classList.contains("extra2") ||
+                        btn.classList.contains("extra3") || btn.classList.contains("extra4")) {
+                        sendArmCommand("S"); // Stop arm movement
+                    }
+                }
+            });
+            
+            btn.addEventListener('pointerleave', function() {
+                btn.classList.remove('pressed');
+                // Send stop command when finger leaves button
+                if (!btn.classList.contains("Stop") && btn.id !== "Stop1") {
+                    if (btn.id === "Up" || btn.id === "Down" || 
+                        btn.classList.contains("extra1") || btn.classList.contains("extra2") ||
+                        btn.classList.contains("extra3") || btn.classList.contains("extra4")) {
+                        sendArmCommand("S"); // Stop arm movement
+                    }
+                }
+            });
+        });
+        
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        themeToggle.addEventListener('click', function() {
+            document.body.classList.toggle('dark');
+            themeToggle.textContent = document.body.classList.contains('dark') ? '-O-' : '-D-';
+        });
+        
+        // Retry connection if failed
+        setInterval(() => {
+            if (!isConnected) {
+                connectMQTT();
+            }
+        }, 5000);
+    });
+</script>
 </html>
