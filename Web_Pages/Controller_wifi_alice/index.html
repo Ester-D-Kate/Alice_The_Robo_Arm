@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero Robot Controller - SIMPLE PRESS/RELEASE</title>
+    <title>Zero Robot Controller - CLEAN UI</title>
     <style>
         :root {
             --bg-color: #f0f0f0;
@@ -352,7 +352,7 @@
     <div class="extra_parent">
         <div class="extra_parent1">
             <button class="extra1">L</button>
-            <button class="extra2">C UP</button>
+            <button class="extra2">UP</button>
         </div>
         <div class="speed-control">
             <label for="speedSlider">Speed:</label>
@@ -360,7 +360,7 @@
             <span id="speedValue">50%</span>
         </div>
         <div class="extra_parent2">
-            <button class="extra3">C DN</button>
+            <button class="extra3">DN</button>
             <button class="extra4">R</button>
         </div>
     </div>
@@ -374,7 +374,7 @@
             <button id="Up">UP</button>
             <div class="RL">
                <button id="Close">C</button>
-               <button id="Stop1" class="Stop">STOP</button>
+               <button id="Stop1" class="Stop">S</button>
                <button id="Open">O</button>
             </div>
             <button id="Down">DN</button>
@@ -382,92 +382,180 @@
     </div>
 
 <script>
-    // MQTT Configuration
+    // **DEBUG TO BROWSER CONSOLE ONLY**
+    function log(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const emoji = {
+            'success': '✅',
+            'error': '❌', 
+            'command': '📤',
+            'info': '📝'
+        };
+        console.log(`${emoji[type] || '📝'} [${timestamp}] ${message}`);
+    }
+    
+    // **SIMPLE: ONLY EMQX BROKER**
     const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+    
     const CAR_TOPIC = 'alice/zero/car/command';
     const ARM_TOPIC = 'alice/zero/arm/command';
     const STATUS_TOPIC = 'alice/zero/robot/status';
     
     let mqttClient = null;
     let isConnected = false;
-    
-    // **TRACK PRESSED BUTTONS - THIS IS THE FIX**
     let pressedButtons = new Set();
+    let commandCount = 0;
     
     const statusElement = document.getElementById('connectionStatus');
     const speedSlider = document.getElementById('speedSlider');
     const speedValue = document.getElementById('speedValue');
     
+    log('🤖 Zero Robot Controller - Clean UI Started', 'success');
+    log(`📡 Connecting to: ${MQTT_BROKER}`, 'info');
+    
     function sendArmCommand(command) {
-        if (!isConnected || !mqttClient) return;
+        if (!isConnected || !mqttClient) {
+            log('MQTT not connected - ARM command ignored', 'error');
+            return false;
+        }
         
         const payload = {
             cmd: command,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            id: ++commandCount
         };
         
-        mqttClient.publish(ARM_TOPIC, JSON.stringify(payload));
-        console.log('ARM:', payload);
+        try {
+            mqttClient.publish(ARM_TOPIC, JSON.stringify(payload));
+            log(`ARM: ${command} (ID: ${commandCount})`, 'command');
+            return true;
+        } catch (error) {
+            log(`ARM publish failed: ${error.message}`, 'error');
+            return false;
+        }
     }
     
     function sendCarCommand(command, speed = null) {
-        if (!isConnected || !mqttClient) return;
+        if (!isConnected || !mqttClient) {
+            log('MQTT not connected - CAR command ignored', 'error');
+            return false;
+        }
         
         const payload = {
             cmd: command,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            id: ++commandCount
         };
         
         if (speed !== null) {
             payload.speed = speed;
         }
         
-        mqttClient.publish(CAR_TOPIC, JSON.stringify(payload));
-        console.log('CAR:', payload);
+        try {
+            mqttClient.publish(CAR_TOPIC, JSON.stringify(payload));
+            log(`CAR: ${command}${speed ? ` (${speed}%)` : ''} (ID: ${commandCount})`, 'command');
+            return true;
+        } catch (error) {
+            log(`CAR publish failed: ${error.message}`, 'error');
+            return false;
+        }
     }
     
-    // Connect to MQTT Broker
+    // **SEND ALL MOVEMENT STOP COMMANDS**
+    function sendAllStopCommands() {
+        // Clear all pressed button states
+        pressedButtons.clear();
+        document.querySelectorAll('button.pressed').forEach(b => {
+            b.classList.remove('pressed');
+        });
+        
+        // Send STOP commands to both ARM and CAR
+        sendArmCommand("S");
+        sendCarCommand("S", parseInt(speedSlider.value));
+        log('All movements stopped', 'success');
+    }
+    
+    // **MQTT CONNECTION - EMQX ONLY**
     function connectMQTT() {
-        statusElement.textContent = 'Connecting to MQTT...';
+        log('Connecting to EMQX broker...', 'info');
+        statusElement.textContent = 'Connecting to EMQX...';
         statusElement.className = 'connection-status status-connecting';
         
         try {
             mqttClient = mqtt.connect(MQTT_BROKER, {
-                keepalive: 30,
+                keepalive: 60,
                 reconnectPeriod: 1000,
-                connectTimeout: 5000,
+                connectTimeout: 10000,
+                clean: true,
+                clientId: `ZeroRobot_${Math.random().toString(16).substr(2, 8)}`
             });
             
             mqttClient.on('connect', () => {
-                console.log('Connected to MQTT broker');
+                log('Connected to EMQX broker!', 'success');
                 isConnected = true;
-                statusElement.textContent = 'Connected to Zero Robot';
+                statusElement.textContent = 'Connected: EMQX';
                 statusElement.className = 'connection-status status-connected';
+                
+                // Subscribe to status updates
+                mqttClient.subscribe(STATUS_TOPIC, (err) => {
+                    if (!err) {
+                        log('Subscribed to robot status', 'success');
+                    } else {
+                        log(`Subscribe failed: ${err.message}`, 'error');
+                    }
+                });
             });
             
             mqttClient.on('error', (err) => {
-                console.error('MQTT Error:', err);
+                log(`EMQX connection failed: ${err.message}`, 'error');
                 isConnected = false;
-                statusElement.textContent = 'Connection Failed';
+                statusElement.textContent = 'EMQX Connection Failed';
                 statusElement.className = 'connection-status status-disconnected';
             });
             
             mqttClient.on('offline', () => {
-                console.log('MQTT offline');
+                log('EMQX offline', 'error');
                 isConnected = false;
-                statusElement.textContent = 'Disconnected';
+                statusElement.textContent = 'EMQX Offline';
                 statusElement.className = 'connection-status status-disconnected';
             });
             
+            mqttClient.on('reconnect', () => {
+                log('Reconnecting to EMQX...', 'info');
+                statusElement.textContent = 'Reconnecting to EMQX...';
+                statusElement.className = 'connection-status status-connecting';
+            });
+            
+            mqttClient.on('close', () => {
+                log('EMQX connection closed', 'error');
+                isConnected = false;
+                statusElement.textContent = 'EMQX Disconnected';
+                statusElement.className = 'connection-status status-disconnected';
+            });
+            
+            mqttClient.on('message', (topic, message) => {
+                if (topic === STATUS_TOPIC) {
+                    try {
+                        const status = JSON.parse(message.toString());
+                        log(`Robot: Online, Heap: ${status.system?.free_heap}b`, 'info');
+                        
+                        // Log servo positions
+                        if (status.arm?.positions) {
+                            const pos = status.arm.positions;
+                            log(`Servos A1:${pos.A1}° A2:${pos.A2}° A3:${pos.A3}° A4:${pos.A4}° A5:${pos.A5}°`, 'info');
+                        }
+                    } catch (e) {
+                        log(`Status parse error: ${e.message}`, 'error');
+                    }
+                }
+            });
+            
         } catch (error) {
-            console.error('MQTT connection error:', error);
-            isConnected = false;
-            statusElement.textContent = 'Connection Error';
-            statusElement.className = 'connection-status status-disconnected';
+            log(`MQTT setup error: ${error.message}`, 'error');
         }
     }
     
-    // Joystick logic (unchanged)
+    // Joystick logic
     const joystick = document.getElementById('joystick');
     const knob = document.getElementById('joystickKnob');
     let dragging = false;
@@ -501,6 +589,7 @@
         center = { x: rect.width/2, y: rect.height/2 };
         maxDist = rect.width/2 - knob.offsetWidth/2;
         moveKnob(e);
+        log('Joystick activated', 'info');
     });
     
     window.addEventListener('pointermove', function(e) {
@@ -514,6 +603,7 @@
         resetKnob();
         lastDir = "S";
         sendCarCommand("S");
+        log('Joystick released', 'info');
     });
     
     function moveKnob(e) {
@@ -538,6 +628,8 @@
     
     // Initialize everything when page loads
     document.addEventListener('DOMContentLoaded', function() {
+        log('Page loaded, connecting to EMQX...', 'success');
+        
         connectMQTT();
         resetKnob();
         
@@ -545,9 +637,10 @@
         speedSlider.addEventListener('input', function() {
             const value = speedSlider.value;
             speedValue.textContent = value + '%';
+            log(`Speed: ${value}%`, 'info');
         });
         
-        // **THE FIX: PROPER BUTTON PRESS AND RELEASE HANDLING**
+        // **MODIFIED BUTTON HANDLING - ALL STOP ON ARM BUTTON RELEASE**
         document.querySelectorAll('button').forEach(function(btn) {
             let cmd = "";
             let isArmButton = false;
@@ -562,103 +655,75 @@
             else if (btn.classList.contains("extra3")) { cmd = "3"; isArmButton = true; }
             else if (btn.classList.contains("extra4")) { cmd = "4"; isArmButton = true; }
             else if (btn.classList.contains("Stop") || btn.id === "Stop1") { 
-                // Special stop button
+                // Emergency stop button
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
-                    sendArmCommand("S");
-                    sendCarCommand("S", parseInt(speedSlider.value));
-                    console.log('EMERGENCY STOP');
+                    log('EMERGENCY STOP!', 'error');
+                    sendAllStopCommands();
                 });
                 return;
             }
             
             if (!cmd) return; // Skip theme toggle and other buttons
             
+            log(`Button: ${btn.textContent || btn.id} → ${cmd} (${isArmButton ? 'ARM' : 'CAR'})`, 'info');
+            
             // **PRESS = START COMMAND**
-            btn.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                if (!pressedButtons.has(btn.id)) {
-                    pressedButtons.add(btn.id);
-                    btn.classList.add('pressed');
-                    
-                    if (isArmButton) {
-                        sendArmCommand(cmd);
-                        console.log('ARM START:', cmd);
-                    } else {
-                        sendCarCommand(cmd, parseInt(speedSlider.value));
-                        console.log('CAR START:', cmd);
+            function handlePress(eventType) {
+                return function(e) {
+                    e.preventDefault();
+                    if (!pressedButtons.has(btn.id)) {
+                        pressedButtons.add(btn.id);
+                        btn.classList.add('pressed');
+                        log(`PRESS (${eventType}): ${btn.textContent || btn.id} → ${cmd}`, 'command');
+                        
+                        if (isArmButton) {
+                            const success = sendArmCommand(cmd);
+                            if (success) {
+                                log(`ARM START: ${cmd}`, 'success');
+                            }
+                        } else {
+                            const success = sendCarCommand(cmd, parseInt(speedSlider.value));
+                            if (success) {
+                                log(`CAR START: ${cmd}`, 'success');
+                            }
+                        }
                     }
-                }
-            });
+                };
+            }
             
-            // **RELEASE = STOP COMMAND**
-            btn.addEventListener('mouseup', function(e) {
-                e.preventDefault();
-                if (pressedButtons.has(btn.id)) {
-                    pressedButtons.delete(btn.id);
-                    btn.classList.remove('pressed');
-                    
-                    if (isArmButton) {
-                        sendArmCommand("S");
-                        console.log('ARM STOP');
+            // **RELEASE = ALL MOVEMENT STOP (FOR ARM BUTTONS ONLY)**
+            function handleRelease(eventType) {
+                return function(e) {
+                    e.preventDefault();
+                    if (pressedButtons.has(btn.id)) {
+                        log(`RELEASE (${eventType}): ${btn.textContent || btn.id}`, 'info');
+                        
+                        if (isArmButton) {
+                            // **FOR ARM BUTTONS: SEND ALL STOP COMMANDS**
+                            sendAllStopCommands();
+                        } else {
+                            // **FOR CAR BUTTONS: SEND ONLY CAR STOP**
+                            pressedButtons.delete(btn.id);
+                            btn.classList.remove('pressed');
+                            const success = sendCarCommand("S", parseInt(speedSlider.value));
+                            if (success) {
+                                log('CAR STOP sent', 'success');
+                            }
+                        }
                     }
-                }
-            });
+                };
+            }
             
-            // **MOUSE LEAVE = STOP COMMAND**
-            btn.addEventListener('mouseleave', function(e) {
-                if (pressedButtons.has(btn.id)) {
-                    pressedButtons.delete(btn.id);
-                    btn.classList.remove('pressed');
-                    
-                    if (isArmButton) {
-                        sendArmCommand("S");
-                        console.log('ARM STOP (mouse leave)');
-                    }
-                }
-            });
+            // **MOUSE EVENTS**
+            btn.addEventListener('mousedown', handlePress('mouse'));
+            btn.addEventListener('mouseup', handleRelease('mouse'));
+            btn.addEventListener('mouseleave', handleRelease('mouse-leave'));
             
             // **TOUCH EVENTS**
-            btn.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                if (!pressedButtons.has(btn.id)) {
-                    pressedButtons.add(btn.id);
-                    btn.classList.add('pressed');
-                    
-                    if (isArmButton) {
-                        sendArmCommand(cmd);
-                        console.log('ARM TOUCH START:', cmd);
-                    } else {
-                        sendCarCommand(cmd, parseInt(speedSlider.value));
-                        console.log('CAR TOUCH START:', cmd);
-                    }
-                }
-            }, {passive: false});
-            
-            btn.addEventListener('touchend', function(e) {
-                e.preventDefault();
-                if (pressedButtons.has(btn.id)) {
-                    pressedButtons.delete(btn.id);
-                    btn.classList.remove('pressed');
-                    
-                    if (isArmButton) {
-                        sendArmCommand("S");
-                        console.log('ARM TOUCH STOP');
-                    }
-                }
-            }, {passive: false});
-            
-            btn.addEventListener('touchcancel', function(e) {
-                if (pressedButtons.has(btn.id)) {
-                    pressedButtons.delete(btn.id);
-                    btn.classList.remove('pressed');
-                    
-                    if (isArmButton) {
-                        sendArmCommand("S");
-                        console.log('ARM TOUCH CANCEL');
-                    }
-                }
-            });
+            btn.addEventListener('touchstart', handlePress('touch'), {passive: false});
+            btn.addEventListener('touchend', handleRelease('touch'), {passive: false});
+            btn.addEventListener('touchcancel', handleRelease('touch-cancel'));
         });
         
         // Theme toggle
@@ -666,14 +731,10 @@
         themeToggle.addEventListener('click', function() {
             document.body.classList.toggle('dark');
             themeToggle.textContent = document.body.classList.contains('dark') ? 'O' : 'D';
+            log(`Theme: ${document.body.classList.contains('dark') ? 'Dark' : 'Light'}`, 'info');
         });
         
-        // Retry connection if failed
-        setInterval(() => {
-            if (!isConnected) {
-                connectMQTT();
-            }
-        }, 5000);
+        log('Zero Robot Controller ready!', 'success');
     });
 </script>
 </html>
