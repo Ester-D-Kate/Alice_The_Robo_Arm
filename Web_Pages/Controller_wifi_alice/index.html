@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero Robot Controller</title>
+    <title>Zero Robot Controller - SIMPLE PRESS/RELEASE</title>
     <style>
         :root {
             --bg-color: #f0f0f0;
@@ -127,6 +127,7 @@
             box-shadow: 0 2px 8px #aaa;
             border: none;
             cursor: pointer;
+            user-select: none;
         }
         button:active,
         button.pressed {
@@ -363,7 +364,7 @@
             <button class="extra4">R</button>
         </div>
     </div>
-    <button class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode">-D-</button>
+    <button class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode">D</button>
     
     <div class="parent">
         <div class="joystick-container" id="joystick">
@@ -381,64 +382,48 @@
     </div>
 
 <script>
-    // MQTT Configuration for your Zero Robot
+    // MQTT Configuration
     const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
     const CAR_TOPIC = 'alice/zero/car/command';
     const ARM_TOPIC = 'alice/zero/arm/command';
     const STATUS_TOPIC = 'alice/zero/robot/status';
     
-    // MQTT Client
     let mqttClient = null;
     let isConnected = false;
     
-    // UI Elements
+    // **TRACK PRESSED BUTTONS - THIS IS THE FIX**
+    let pressedButtons = new Set();
+    
     const statusElement = document.getElementById('connectionStatus');
     const speedSlider = document.getElementById('speedSlider');
     const speedValue = document.getElementById('speedValue');
     
-    function startArmMovement(cmd) {
-        if (buttonIntervals[cmd]) return;
+    function sendArmCommand(command) {
+        if (!isConnected || !mqttClient) return;
         
-        console.log('Starting arm movement:', cmd);
-        sendArmCommand(cmd);
+        const payload = {
+            cmd: command,
+            timestamp: Date.now()
+        };
         
-        buttonIntervals[cmd] = setInterval(() => {
-            sendArmCommand(cmd);
-            console.log('Repeating arm command:', cmd);
-        }, 200);
+        mqttClient.publish(ARM_TOPIC, JSON.stringify(payload));
+        console.log('ARM:', payload);
     }
     
-    function stopArmMovement(cmd) {
-        console.log('Stopping arm movement:', cmd);
+    function sendCarCommand(command, speed = null) {
+        if (!isConnected || !mqttClient) return;
         
-        if (buttonIntervals[cmd]) {
-            clearInterval(buttonIntervals[cmd]);
-            delete buttonIntervals[cmd];
+        const payload = {
+            cmd: command,
+            timestamp: Date.now()
+        };
+        
+        if (speed !== null) {
+            payload.speed = speed;
         }
         
-        sendArmCommand("S");
-        console.log('Sent STOP command to arm');
-    }
-    
-    // **FIXED: Global function to handle button release**
-    function handleButtonRelease() {
-        console.log('Global button release triggered');
-        
-        pressedButtons.forEach(btn => {
-            btn.classList.remove('pressed');
-            
-            const cmd = btn.dataset.cmd;
-            const topic = btn.dataset.topic;
-            
-            console.log('Releasing button:', cmd, topic);
-            
-            if (topic === 'arm') {
-                stopArmMovement(cmd);
-            }
-        });
-        
-        pressedButtons.clear();
-        console.log('All pressed buttons cleared');
+        mqttClient.publish(CAR_TOPIC, JSON.stringify(payload));
+        console.log('CAR:', payload);
     }
     
     // Connect to MQTT Broker
@@ -458,11 +443,6 @@
                 isConnected = true;
                 statusElement.textContent = 'Connected to Zero Robot';
                 statusElement.className = 'connection-status status-connected';
-                
-                // Subscribe to status updates
-                mqttClient.subscribe(STATUS_TOPIC, (err) => {
-                    if (err) console.error('Subscribe error:', err);
-                });
             });
             
             mqttClient.on('error', (err) => {
@@ -479,23 +459,6 @@
                 statusElement.className = 'connection-status status-disconnected';
             });
             
-            mqttClient.on('reconnect', () => {
-                console.log('MQTT reconnecting...');
-                statusElement.textContent = 'Reconnecting...';
-                statusElement.className = 'connection-status status-connecting';
-            });
-            
-            mqttClient.on('message', (topic, message) => {
-                if (topic === STATUS_TOPIC) {
-                    try {
-                        const status = JSON.parse(message.toString());
-                        console.log('Robot Status:', status);
-                    } catch (e) {
-                        console.error('Failed to parse status:', e);
-                    }
-                }
-            });
-            
         } catch (error) {
             console.error('MQTT connection error:', error);
             isConnected = false;
@@ -504,46 +467,7 @@
         }
     }
     
-    // Send MQTT commands
-    function sendCarCommand(command, speed = null) {
-        if (!isConnected || !mqttClient) {
-            console.warn('MQTT not connected');
-            return;
-        }
-        
-        const payload = {
-            cmd: command,
-            timestamp: Date.now()
-        };
-        
-        if (speed !== null) {
-            payload.speed = speed;
-        }
-        
-        mqttClient.publish(CAR_TOPIC, JSON.stringify(payload));
-        console.log('Car Command:', payload);
-    }
-    
-    function sendArmCommand(command, joint = null) {
-        if (!isConnected || !mqttClient) {
-            console.warn('MQTT not connected');
-            return;
-        }
-        
-        const payload = {
-            cmd: command,
-            timestamp: Date.now()
-        };
-        
-        if (joint !== null) {
-            payload.joint = joint;
-        }
-        
-        mqttClient.publish(ARM_TOPIC, JSON.stringify(payload));
-        console.log('Arm Command:', payload);
-    }
-    
-    // Joystick logic
+    // Joystick logic (unchanged)
     const joystick = document.getElementById('joystick');
     const knob = document.getElementById('joystickKnob');
     let dragging = false;
@@ -555,11 +479,11 @@
         const angle = Math.atan2(dy, dx) * 180 / Math.PI;
         const distance = Math.sqrt(dx*dx + dy*dy);
         
-        if (distance < maxDist * 0.3) return "S"; // Center = Stop
-        if (angle >= -45 && angle < 45) return "R";   // Right
-        if (angle >= 45 && angle < 135) return "B";   // Backward  
-        if (angle >= -135 && angle < -45) return "F"; // Forward
-        return "L"; // Left
+        if (distance < maxDist * 0.3) return "S";
+        if (angle >= -45 && angle < 45) return "R";
+        if (angle >= 45 && angle < 135) return "B";
+        if (angle >= -135 && angle < -45) return "F";
+        return "L";
     }
     
     function setKnob(x, y) {
@@ -614,10 +538,7 @@
     
     // Initialize everything when page loads
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize MQTT connection
         connectMQTT();
-        
-        // Initialize joystick knob position
         resetKnob();
         
         // Speed slider
@@ -626,76 +547,115 @@
             speedValue.textContent = value + '%';
         });
         
-        // Button event listeners
+        // **THE FIX: PROPER BUTTON PRESS AND RELEASE HANDLING**
         document.querySelectorAll('button').forEach(function(btn) {
-            btn.addEventListener('pointerdown', function() {
-                btn.classList.add('pressed');
-                
-                let cmd = "";
-                let isCarCommand = false;
-                let isArmCommand = false;
-                
-                // Car movement commands (joystick alternative)
-                if (btn.id === "Up") {
-                    cmd = "U";
-                    isArmCommand = true;
-                } else if (btn.id === "Down") {
-                    cmd = "D"; 
-                    isArmCommand = true;
-                } else if (btn.id === "Close") {
-                    cmd = "C";
-                    isArmCommand = true;
-                } else if (btn.id === "Open") {
-                    cmd = "O";
-                    isArmCommand = true;
-                } else if (btn.classList.contains("extra1")) {
-                    cmd = "1"; // Wrist Left
-                    isArmCommand = true;
-                } else if (btn.classList.contains("extra2")) {
-                    cmd = "2"; // Claw UP
-                    isArmCommand = true;
-                } else if (btn.classList.contains("extra3")) {
-                    cmd = "3"; // Claw DOWN
-                    isArmCommand = true;
-                } else if (btn.classList.contains("extra4")) {
-                    cmd = "4"; // Wrist Right
-                    isArmCommand = true;
-                } else if (btn.classList.contains("Stop") || btn.id === "Stop1") {
-                    cmd = "S";
-                    isCarCommand = true;
-                } else {
-                    cmd = btn.textContent.trim();
-                }
-                
-                // Send appropriate command
-                if (isCarCommand) {
-                    const currentSpeed = parseInt(speedSlider.value);
-                    sendCarCommand(cmd, currentSpeed);
-                } else if (isArmCommand) {
-                    sendArmCommand(cmd);
-                }
-            });
+            let cmd = "";
+            let isArmButton = false;
             
-            btn.addEventListener('pointerup', function() {
-                btn.classList.remove('pressed');
-                // Send stop command for continuous actions
-                if (!btn.classList.contains("Stop") && btn.id !== "Stop1") {
-                    if (btn.id === "Up" || btn.id === "Down" || 
-                        btn.classList.contains("extra1") || btn.classList.contains("extra2") ||
-                        btn.classList.contains("extra3") || btn.classList.contains("extra4")) {
-                        sendArmCommand("S"); // Stop arm movement
+            // Determine command type
+            if (btn.id === "Up") { cmd = "U"; isArmButton = true; }
+            else if (btn.id === "Down") { cmd = "D"; isArmButton = true; }
+            else if (btn.id === "Close") { cmd = "C"; isArmButton = true; }
+            else if (btn.id === "Open") { cmd = "O"; isArmButton = true; }
+            else if (btn.classList.contains("extra1")) { cmd = "1"; isArmButton = true; }
+            else if (btn.classList.contains("extra2")) { cmd = "2"; isArmButton = true; }
+            else if (btn.classList.contains("extra3")) { cmd = "3"; isArmButton = true; }
+            else if (btn.classList.contains("extra4")) { cmd = "4"; isArmButton = true; }
+            else if (btn.classList.contains("Stop") || btn.id === "Stop1") { 
+                // Special stop button
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    sendArmCommand("S");
+                    sendCarCommand("S", parseInt(speedSlider.value));
+                    console.log('EMERGENCY STOP');
+                });
+                return;
+            }
+            
+            if (!cmd) return; // Skip theme toggle and other buttons
+            
+            // **PRESS = START COMMAND**
+            btn.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                if (!pressedButtons.has(btn.id)) {
+                    pressedButtons.add(btn.id);
+                    btn.classList.add('pressed');
+                    
+                    if (isArmButton) {
+                        sendArmCommand(cmd);
+                        console.log('ARM START:', cmd);
+                    } else {
+                        sendCarCommand(cmd, parseInt(speedSlider.value));
+                        console.log('CAR START:', cmd);
                     }
                 }
             });
             
-            btn.addEventListener('pointerleave', function() {
-                btn.classList.remove('pressed');
-                // Send stop command when finger leaves button
-                if (!btn.classList.contains("Stop") && btn.id !== "Stop1") {
-                    if (btn.id === "Up" || btn.id === "Down" || 
-                        btn.classList.contains("extra1") || btn.classList.contains("extra2") ||
-                        btn.classList.contains("extra3") || btn.classList.contains("extra4")) {
-                        sendArmCommand("S"); // Stop arm movement
+            // **RELEASE = STOP COMMAND**
+            btn.addEventListener('mouseup', function(e) {
+                e.preventDefault();
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                        console.log('ARM STOP');
+                    }
+                }
+            });
+            
+            // **MOUSE LEAVE = STOP COMMAND**
+            btn.addEventListener('mouseleave', function(e) {
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                        console.log('ARM STOP (mouse leave)');
+                    }
+                }
+            });
+            
+            // **TOUCH EVENTS**
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                if (!pressedButtons.has(btn.id)) {
+                    pressedButtons.add(btn.id);
+                    btn.classList.add('pressed');
+                    
+                    if (isArmButton) {
+                        sendArmCommand(cmd);
+                        console.log('ARM TOUCH START:', cmd);
+                    } else {
+                        sendCarCommand(cmd, parseInt(speedSlider.value));
+                        console.log('CAR TOUCH START:', cmd);
+                    }
+                }
+            }, {passive: false});
+            
+            btn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                        console.log('ARM TOUCH STOP');
+                    }
+                }
+            }, {passive: false});
+            
+            btn.addEventListener('touchcancel', function(e) {
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                        console.log('ARM TOUCH CANCEL');
                     }
                 }
             });
@@ -705,7 +665,7 @@
         const themeToggle = document.getElementById('themeToggle');
         themeToggle.addEventListener('click', function() {
             document.body.classList.toggle('dark');
-            themeToggle.textContent = document.body.classList.contains('dark') ? '-O-' : '-D-';
+            themeToggle.textContent = document.body.classList.contains('dark') ? 'O' : 'D';
         });
         
         // Retry connection if failed
