@@ -42,9 +42,9 @@ String carDirection = "S";
 int carSpeed = 0;
 
 // **IMPROVED PID CONSTANTS**
-float Kp = 1.2;   // Reduced from 1.5 for stability
-float Ki = 0.005; // Reduced from 0.01 for less aggressive integral action
-float Kd = 0.3;   // Reduced from 0.5 for less derivative kick
+float Kp = 6.2;   // Reduced from 1.5 for stability
+float Ki = 0.000; // Reduced from 0.01 for less aggressive integral action
+float Kd = 0.0;   // Reduced from 0.5 for less derivative kick
 float desired_angle = 0;
 float integral = 0.0;
 float previous_error = 0.0;
@@ -161,11 +161,11 @@ void controlCar(String direction, int speed, float pidCorrection = 0) {
   int leftSpeed, rightSpeed;
   
   // **CONSTRAIN PID CORRECTION TO MOTOR PWM RANGE**
-  pidCorrection = constrain(pidCorrection, -128, 128);
+  pidCorrection = constrain(pidCorrection, -254, 254);
   
   if (direction == "F" || direction == "FWD" || direction == "FORWARD") {
-    leftSpeed = constrain(pwmSpeed - pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
-    rightSpeed = constrain(pwmSpeed + pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
+    leftSpeed = constrain(pwmSpeed + pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
+    rightSpeed = constrain(pwmSpeed - pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
     
     analogWrite(motorLeftPin1, leftSpeed);
     analogWrite(motorLeftPin2, 0);
@@ -173,8 +173,8 @@ void controlCar(String direction, int speed, float pidCorrection = 0) {
     analogWrite(motorRightPin2, 0);
   } 
   else if (direction == "B" || direction == "BWD" || direction == "BACKWARD") {
-    leftSpeed = constrain(pwmSpeed + pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
-    rightSpeed = constrain(pwmSpeed - pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
+    leftSpeed = constrain(pwmSpeed - pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
+    rightSpeed = constrain(pwmSpeed + pidCorrection, MOTOR_PWM_MIN, MOTOR_PWM_MAX);
     
     analogWrite(motorLeftPin1, 0);
     analogWrite(motorLeftPin2, leftSpeed);
