@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  alice-voice-controller:
+    build: .
+    container_name: alice-voice-controller
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs

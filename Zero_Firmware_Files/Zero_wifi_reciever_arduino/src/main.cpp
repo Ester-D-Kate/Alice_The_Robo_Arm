@@ -42,7 +42,7 @@ String carDirection = "S";
 int carSpeed = 0;
 
 // **IMPROVED PID CONSTANTS**
-float Kp = 6.2;   // Reduced from 1.5 for stability
+float Kp = 5.0;   // Reduced from 1.5 for stability
 float Ki = 0.000; // Reduced from 0.01 for less aggressive integral action
 float Kd = 0.0;   // Reduced from 0.5 for less derivative kick
 float desired_angle = 0;
