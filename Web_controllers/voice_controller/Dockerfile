@@ -21,3 +21,6 @@ COPY . .
 
 # Expose port
 EXPOSE 8000
+
+# ADD THIS LINE - This was missing!
+CMD ["uvicorn", "voiceController:app", "--host", "0.0.0.0", "--port", "8000"]
