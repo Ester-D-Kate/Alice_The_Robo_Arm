@@ -1,9 +1,10 @@
 import asyncio
 import json
 import os
+import random
 from datetime import datetime
 from io import BytesIO
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -14,9 +15,8 @@ from paho.mqtt.client import Client as MQTTClient
 from dotenv import load_dotenv
 load_dotenv()
 
-app = FastAPI(title="Voice Robot Controller", version="2.0.0")
+app = FastAPI(title="Alice Voice Robot Controller", version="3.0.0")
 
-# CORS middleware for web interface
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,8 +43,7 @@ def connect_mqtt():
     """Connect to MQTT broker"""
     global mqtt_client
     try:
-        # Fixed: Remove callback_api_version parameter for newer paho-mqtt versions
-        mqtt_client = MQTTClient(f"VoiceController_{datetime.now().timestamp()}")
+        mqtt_client = MQTTClient(f"AliceController_{datetime.now().timestamp()}")
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
         print(f"✅ Connected to MQTT broker: {MQTT_BROKER}")
@@ -63,12 +62,10 @@ def send_command(topic: str, command: str, speed: Optional[int] = None, position
     command_count += 1
     
     if topic == ARM_POSITION_TOPIC and positions:
-        # Position command for arm
         payload = positions.copy()
         payload["timestamp"] = int(datetime.now().timestamp() * 1000)
         payload["id"] = command_count
     else:
-        # Regular command
         payload = {
             "cmd": command,
             "timestamp": int(datetime.now().timestamp() * 1000),
@@ -86,82 +83,48 @@ def send_command(topic: str, command: str, speed: Optional[int] = None, position
         print(f"❌ Failed to send command: {e}")
         return False
 
-def text_to_robot_commands(text: str) -> Dict[str, str]:
-    """Convert natural language to robot commands using Groq"""
+def generate_dynamic_sequence(intent: str, style: str = "normal") -> List[Dict]:
+    """Generate dynamic sequences based on intent and style using AI"""
     
-    system_prompt = """You are a robot command translator. Convert natural language to specific robot commands.
+    sequence_prompt = f"""You are Alice, a creative robotic arm assistant. Generate a sequence of movements for the intent: "{intent}" with style: "{style}".
 
-ROBOT SYSTEM:
-- CAR: Moves the entire robot base (has speed control 0-100%)
-- ARM: 4 joints - Claw, Claw Neck, Arm Joint 1, Arm Joint 2 (no speed, moves incrementally)
+AVAILABLE COMMANDS:
+Car: F(forward), B(backward), L(left), R(right), S(stop)
+Arm: U(up), D(down), C(close claw), O(open claw), 1(neck left), 2(neck up), 3(neck down), 4(neck right), S(stop)
 
-CAR COMMANDS:
-- F (forward), B (backward), L (left), R (right), S (stop)
-- Speed: 0-100% (slow=25%, normal=50%, fast=80%, max=100%)
+STYLES:
+- energetic: Fast, dynamic movements with high speed (70-90%)
+- gentle: Slow, smooth movements with low speed (20-40%)
+- playful: Random, fun combinations with medium speed (50-70%)
+- elegant: Graceful, coordinated movements with medium speed (40-60%)
+- dramatic: Bold, expressive movements with varying speeds
 
-ARM COMMANDS (Manual/Incremental):
-- U (arm up - both joints move), D (arm down - both joints move)
-- C (close claw), O (open claw)
-- 1 (claw neck left), 4 (claw neck right) 
-- 2 (claw neck up), 3 (claw neck down)
-- S (stop all arm movement)
-
-ARM POSITION COMMANDS (Absolute):
-- "move claw to 45 degrees" → position command
-- "set arm joint 1 to 90" → position command
-- A1=Claw (0-180°), A2=Claw Neck (0-180°), A3=Arm Joint 1 (0-180°), A4=Arm Joint 2 (0-180°)
-
-SPEED DETECTION (CAR ONLY):
-- "slowly" = 25%, "fast" = 80%, "very fast" = 100%
-- Numbers: "speed 70" = 70%
-- Default = 50%
-
-DURATION:
-- "for X seconds" = X duration
-- "briefly" = 1 second, "long" = 5 seconds
-- Default = 2 seconds
+SEQUENCE RULES:
+- Create 4-8 movement steps
+- Each step should have car_command, arm_command, speed, and duration
+- Duration should be 0.5-3.0 seconds
+- Speed should be 20-90% for car movements
+- Always end with stop commands
+- Make movements meaningful for the intent
 
 RESPONSE FORMAT (JSON only):
-{
-    "command_type": "manual" OR "position" OR "car",
-    "car_command": "F" OR null,
-    "arm_command": "U" OR null,
-    "positions": {"A1": 90, "A2": 45} OR null,
-    "speed": 50,
-    "duration": 2,
-    "interpretation": "description"
-}
+[
+  {{"car_command": "L", "arm_command": "U", "speed": 60, "duration": 1.5}},
+  {{"car_command": "R", "arm_command": "D", "speed": 60, "duration": 1.5}},
+  {{"car_command": "S", "arm_command": "S", "speed": 0, "duration": 0.5}}
+]
 
-RULES:
-- Car commands: Use "car_command" and "speed"
-- Arm manual: Use "arm_command" (no speed)
-- Arm position: Use "positions" with joint angles
-- Speed ONLY affects car movement
-- If angle mentioned, use position command
-- If direction mentioned (up/down/open/close), use manual command
-
-EXAMPLES:
-"move forward slowly" → {"command_type": "car", "car_command": "F", "arm_command": null, "positions": null, "speed": 25, "duration": 2, "interpretation": "moving car forward slowly"}
-
-"arm up" → {"command_type": "manual", "car_command": null, "arm_command": "U", "positions": null, "speed": 50, "duration": 2, "interpretation": "moving arm up incrementally"}
-
-"move claw to 45 degrees" → {"command_type": "position", "car_command": null, "arm_command": null, "positions": {"A1": 45}, "speed": 50, "duration": 3, "interpretation": "moving claw to 45 degrees"}
-
-"close gripper" → {"command_type": "manual", "car_command": null, "arm_command": "C", "positions": null, "speed": 50, "duration": 1, "interpretation": "closing claw"}
-
-"turn left fast and close claw" → {"command_type": "manual", "car_command": "L", "arm_command": "C", "positions": null, "speed": 80, "duration": 2, "interpretation": "turning left fast while closing claw"}
-
-"set arm joint 1 to 90 degrees" → {"command_type": "position", "car_command": null, "arm_command": null, "positions": {"A3": 90}, "speed": 50, "duration": 3, "interpretation": "setting arm joint 1 to 90 degrees"}"""
+Generate a creative sequence for: {intent} (style: {style})"""
 
     try:
         response = groq_client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text}
+                {"role": "system", "content": "You are a creative movement choreographer for Alice robot. Generate JSON sequences only."},
+                {"role": "user", "content": sequence_prompt}
             ],
-            temperature=0.2,
-            max_tokens=300
+            temperature=0.7,  # Higher creativity
+            max_tokens=500
         )
         
         result_text = response.choices[0].message.content.strip()
@@ -171,47 +134,203 @@ EXAMPLES:
             result_text = result_text[7:-3]
         elif result_text.startswith("```"):
             result_text = result_text[3:-3]
+        elif result_text.startswith("["):
+            pass  # Already JSON
+        else:
+            # Find JSON array in text
+            start = result_text.find("[")
+            end = result_text.rfind("]") + 1
+            if start != -1 and end > start:
+                result_text = result_text[start:end]
+        
+        sequence = json.loads(result_text)
+        
+        # Validate and clean sequence
+        cleaned_sequence = []
+        for step in sequence:
+            cleaned_step = {
+                "car_command": step.get("car_command", "S"),
+                "arm_command": step.get("arm_command", "S"),
+                "speed": max(20, min(90, step.get("speed", 50))),
+                "duration": max(0.5, min(3.0, step.get("duration", 1.0)))
+            }
+            cleaned_sequence.append(cleaned_step)
+        
+        print(f"🎭 Generated {len(cleaned_sequence)} step sequence for: {intent}")
+        return cleaned_sequence
+        
+    except Exception as e:
+        print(f"❌ Sequence generation failed: {e}")
+        # Fallback simple sequence
+        return [
+            {"car_command": "L", "arm_command": "U", "speed": 50, "duration": 1},
+            {"car_command": "R", "arm_command": "D", "speed": 50, "duration": 1},
+            {"car_command": "S", "arm_command": "S", "speed": 0, "duration": 0.5}
+        ]
+
+def enhanced_text_to_robot_commands(text: str) -> Dict:
+    """Enhanced command translator with dynamic sequence generation"""
+    
+    system_prompt = """You are Alice's advanced command interpreter. Analyze the user's request and determine the best response type.
+
+COMMAND TYPES:
+1. "simple" - Single movement commands
+2. "sequence_preset" - Use predefined sequences (dance, wave, spin, patrol)
+3. "sequence_dynamic" - Generate new custom sequences
+4. "position" - Precise joint positioning
+
+DYNAMIC SEQUENCE TRIGGERS:
+- Creative requests: "be creative", "surprise me", "show your personality"
+- Emotional expressions: "be happy", "act sad", "show excitement", "be dramatic"
+- Activity requests: "exercise", "stretch", "warm up", "cool down"
+- Entertainment: "perform", "entertain me", "put on a show", "be funny"
+- Character actions: "be a dinosaur", "act like a cat", "pretend to swim"
+- Contextual actions: "celebrate victory", "say goodbye", "welcome someone"
+
+STYLE DETECTION:
+- "energetic/fast/quick/excited" → energetic
+- "gentle/slow/calm/peaceful" → gentle  
+- "fun/playful/silly/random" → playful
+- "elegant/graceful/smooth" → elegant
+- "dramatic/bold/expressive" → dramatic
+- Default → normal
+
+PRESET SEQUENCES:
+- dance, wave, spin, patrol (use for basic requests)
+
+RESPONSE FORMAT:
+{
+    "command_type": "simple|sequence_preset|sequence_dynamic|position",
+    "car_command": "F" OR null,
+    "arm_command": "U" OR null,
+    "positions": {"A1": 90} OR null,
+    "speed": 50,
+    "duration": 2,
+    "sequence_name": "dance" OR null,
+    "dynamic_intent": "be happy" OR null,
+    "style": "energetic" OR null,
+    "interpretation": "description"
+}
+
+EXAMPLES:
+"dance for me" → sequence_preset: "dance"
+"be creative and surprise me" → sequence_dynamic, intent: "surprise me", style: "playful"
+"show excitement energetically" → sequence_dynamic, intent: "show excitement", style: "energetic"
+"act like a happy puppy" → sequence_dynamic, intent: "act like a happy puppy", style: "playful"
+"gracefully welcome the guests" → sequence_dynamic, intent: "welcome the guests", style: "elegant"
+"move forward" → simple car command"""
+
+    try:
+        response = groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text}
+            ],
+            temperature=0.3,
+            max_tokens=300
+        )
+        
+        result_text = response.choices[0].message.content.strip()
+        
+        # Extract JSON
+        if result_text.startswith("```json"):
+            result_text = result_text[7:-3]
+        elif result_text.startswith("```"):
+            result_text = result_text[3:-3]
             
         parsed_result = json.loads(result_text)
         
-        # Ensure all required fields exist
-        required_fields = ["command_type", "car_command", "arm_command", "positions", "speed", "duration", "interpretation"]
-        for field in required_fields:
-            if field not in parsed_result:
-                if field == "speed":
-                    parsed_result[field] = 50
-                elif field == "duration":
-                    parsed_result[field] = 20
-                elif field == "command_type":
-                    parsed_result[field] = "manual"
-                else:
-                    parsed_result[field] = None
+        # Set defaults
+        defaults = {
+            "command_type": "simple",
+            "car_command": None,
+            "arm_command": None,
+            "positions": None,
+            "speed": 50,
+            "duration": 2,
+            "sequence_name": None,
+            "dynamic_intent": None,
+            "style": "normal",
+            "interpretation": "Unknown command"
+        }
         
-        # Validate ranges
-        if parsed_result["speed"]:
-            parsed_result["speed"] = max(0, min(100, int(parsed_result["speed"])))
-        if parsed_result["duration"]:
-            parsed_result["duration"] = max(0.5, min(10, float(parsed_result["duration"])))
-        
-        # Validate positions
-        if parsed_result["positions"]:
-            for joint, angle in parsed_result["positions"].items():
-                if joint in ["A1", "A2", "A3", "A4"]:
-                    parsed_result["positions"][joint] = max(0, min(180, int(angle)))
+        for key, default_value in defaults.items():
+            if key not in parsed_result:
+                parsed_result[key] = default_value
         
         return parsed_result
         
     except Exception as e:
-        print(f"❌ Command translation failed: {e}")
+        print(f"❌ Command interpretation failed: {e}")
         return {
-            "command_type": "manual",
+            "command_type": "simple",
             "car_command": "S",
-            "arm_command": "S", 
-            "positions": None,
-            "speed": 50,
-            "duration": 1,
-            "interpretation": f"Error: {str(e)}"
+            "arm_command": "S",
+            "dynamic_intent": f"Error: {str(e)}",
+            "style": "normal",
+            "interpretation": "Error occurred"
         }
+
+# Predefined sequences (keeping the originals)
+PRESET_SEQUENCES = {
+    "dance": [
+        {"car_command": "L", "arm_command": "U", "speed": 60, "duration": 1},
+        {"car_command": "R", "arm_command": "D", "speed": 60, "duration": 1},
+        {"car_command": "L", "arm_command": "U", "speed": 60, "duration": 1},
+        {"car_command": "R", "arm_command": "D", "speed": 60, "duration": 1},
+        {"car_command": "S", "arm_command": "S", "speed": 0, "duration": 0.5}
+    ],
+    "wave": [
+        {"arm_command": "U", "speed": 50, "duration": 1},
+        {"arm_command": "D", "speed": 50, "duration": 1},
+        {"arm_command": "U", "speed": 50, "duration": 1},
+        {"arm_command": "D", "speed": 50, "duration": 1},
+        {"arm_command": "S", "speed": 0, "duration": 0.5}
+    ],
+    "spin": [
+        {"car_command": "L", "speed": 70, "duration": 0.7},
+        {"car_command": "L", "speed": 70, "duration": 0.7},
+        {"car_command": "L", "speed": 70, "duration": 0.7},
+        {"car_command": "L", "speed": 70, "duration": 0.7},
+        {"car_command": "S", "speed": 0, "duration": 0.5}
+    ],
+    "patrol": [
+        {"car_command": "F", "speed": 50, "duration": 2},
+        {"car_command": "L", "speed": 50, "duration": 1},
+        {"car_command": "F", "speed": 50, "duration": 2},
+        {"car_command": "R", "speed": 50, "duration": 1},
+        {"car_command": "S", "speed": 0, "duration": 0.5}
+    ]
+}
+
+async def execute_sequence(sequence: List[Dict]) -> bool:
+    """Execute any sequence of movements"""
+    print(f"🎭 Executing {len(sequence)} step sequence")
+    
+    for i, step in enumerate(sequence):
+        print(f"Step {i+1}: Car={step.get('car_command', 'S')}, Arm={step.get('arm_command', 'S')}, Speed={step.get('speed', 0)}%, Duration={step.get('duration', 0)}s")
+        
+        # Send car command
+        if step.get("car_command") and step["car_command"] != "S":
+            send_command(CAR_TOPIC, step["car_command"], step.get("speed", 50))
+        
+        # Send arm command
+        if step.get("arm_command") and step["arm_command"] != "S":
+            send_command(ARM_TOPIC, step["arm_command"])
+        
+        # Wait for step duration
+        if step.get("duration", 0) > 0:
+            await asyncio.sleep(step["duration"])
+        
+        # Send stop commands if this is a stop step
+        if step.get("car_command") == "S":
+            send_command(CAR_TOPIC, "S")
+        if step.get("arm_command") == "S":
+            send_command(ARM_TOPIC, "S")
+    
+    print(f"✅ Sequence completed successfully")
+    return True
 
 @app.on_event("startup")
 async def startup_event():
@@ -220,16 +339,15 @@ async def startup_event():
 
 @app.post("/voice-command")
 async def process_voice_command(audio_file: UploadFile = File(...)):
-    """Process voice command and return parsed commands for web interface execution"""
+    """Process voice command with dynamic sequence generation"""
     
     if not audio_file.content_type.startswith('audio/'):
         raise HTTPException(status_code=400, detail="Please upload an audio file")
     
     try:
-        # Read audio file
+        # Read and transcribe audio
         audio_data = await audio_file.read()
         
-        # Transcribe with Groq Whisper
         print("🎤 Transcribing audio...")
         transcription = groq_client.audio.transcriptions.create(
             file=(audio_file.filename, BytesIO(audio_data), audio_file.content_type),
@@ -243,15 +361,13 @@ async def process_voice_command(audio_file: UploadFile = File(...)):
         if not text:
             raise HTTPException(status_code=400, detail="No speech detected")
         
-        # Convert to robot commands
-        print("🤖 Converting to robot commands...")
-        commands = text_to_robot_commands(text)
+        # Enhanced command interpretation
+        commands = enhanced_text_to_robot_commands(text)
         
         print(f"🎯 Command Type: {commands['command_type']}")
-        print(f"🎯 Car: {commands['car_command']}, Arm: {commands['arm_command']}, Positions: {commands['positions']}")
-        print(f"🎯 Speed: {commands['speed']}%, Duration: {commands['duration']}s")
+        print(f"🎭 Intent: {commands.get('dynamic_intent', 'N/A')}")
+        print(f"🎨 Style: {commands.get('style', 'normal')}")
         
-        # Return commands for web interface to execute
         return {
             "success": True,
             "transcription": text,
@@ -265,28 +381,40 @@ async def process_voice_command(audio_file: UploadFile = File(...)):
 
 @app.post("/text-command")
 async def process_text_command(text: str):
-    """Process text command directly (for testing)"""
+    """Process text command with dynamic sequence generation"""
     try:
-        commands = text_to_robot_commands(text)
-        
-        # Execute commands via MQTT
+        commands = enhanced_text_to_robot_commands(text)
         success = True
         
-        # Car command
-        if commands.get("car_command") and commands["car_command"] != "S":
-            success &= send_command(CAR_TOPIC, commands["car_command"], commands.get("speed"))
-        
-        # Arm commands
-        if commands.get("command_type") == "position" and commands.get("positions"):
-            # Position command
-            success &= send_command(ARM_POSITION_TOPIC, "", positions=commands["positions"])
-        elif commands.get("arm_command") and commands["arm_command"] != "S":
-            # Manual command
-            success &= send_command(ARM_TOPIC, commands["arm_command"])
-        
-        # Auto-stop after duration
-        if commands.get("duration", 0) > 0:
-            asyncio.create_task(send_stop_after_delay(commands["duration"]))
+        if commands.get("command_type") == "sequence_preset":
+            # Use predefined sequence
+            sequence_name = commands.get("sequence_name")
+            if sequence_name in PRESET_SEQUENCES:
+                success = await execute_sequence(PRESET_SEQUENCES[sequence_name])
+            else:
+                success = False
+                
+        elif commands.get("command_type") == "sequence_dynamic":
+            # Generate and execute dynamic sequence
+            intent = commands.get("dynamic_intent", "be creative")
+            style = commands.get("style", "normal")
+            
+            print(f"🎭 Generating dynamic sequence: '{intent}' with style '{style}'")
+            dynamic_sequence = generate_dynamic_sequence(intent, style)
+            success = await execute_sequence(dynamic_sequence)
+            
+        else:
+            # Execute simple commands
+            if commands.get("car_command") and commands["car_command"] != "S":
+                success &= send_command(CAR_TOPIC, commands["car_command"], commands.get("speed"))
+            
+            if commands.get("command_type") == "position" and commands.get("positions"):
+                success &= send_command(ARM_POSITION_TOPIC, "", positions=commands["positions"])
+            elif commands.get("arm_command") and commands["arm_command"] != "S":
+                success &= send_command(ARM_TOPIC, commands["arm_command"])
+            
+            if commands.get("duration", 0) > 0:
+                asyncio.create_task(send_stop_after_delay(commands["duration"]))
         
         return {
             "success": success,
@@ -296,6 +424,37 @@ async def process_text_command(text: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/create-sequence")
+async def create_custom_sequence(intent: str, style: str = "normal"):
+    """Create a custom sequence for any intent"""
+    try:
+        sequence = generate_dynamic_sequence(intent, style)
+        return {
+            "success": True,
+            "intent": intent,
+            "style": style,
+            "sequence": sequence,
+            "steps": len(sequence),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/capabilities")
+async def get_capabilities():
+    """Get Alice's current capabilities"""
+    return {
+        "preset_sequences": list(PRESET_SEQUENCES.keys()),
+        "dynamic_generation": True,
+        "supported_styles": ["energetic", "gentle", "playful", "elegant", "dramatic", "normal"],
+        "example_intents": [
+            "be happy", "show excitement", "act like a cat", 
+            "celebrate victory", "say goodbye", "stretch",
+            "be creative", "surprise me", "welcome someone"
+        ],
+        "ai_model": "llama-3.1-8b-instant via Groq"
+    }
 
 async def send_stop_after_delay(delay_seconds: float):
     """Send stop commands after specified delay"""
@@ -312,7 +471,7 @@ async def emergency_stop():
     
     return {
         "success": car_success and arm_success,
-        "message": "Emergency stop executed",
+        "message": "Alice emergency stop executed",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -320,8 +479,9 @@ async def emergency_stop():
 async def health_check():
     """Health check endpoint"""
     return {
-        "status": "healthy",
+        "status": "Alice is healthy and ready",
         "mqtt_connected": mqtt_client is not None,
+        "ai_ready": True,
         "timestamp": datetime.now().isoformat()
     }
 
