@@ -161,12 +161,8 @@ void loop() {
       lastStatusTime = millis();
     }
     
-    // Auto-stop safety
-    if (millis() - commandTimeout > 2000 && word_command != "S") {
-      word_command = "S";
-      stopAllMovement();
-      Serial.println("Auto-stop: No commands received");
-    }
+    // **REMOVED AUTO-STOP TIMEOUT - NO MORE KILLING CONTINUOUS COMMANDS!**
+    // The old timeout code has been completely removed
     
     // Monitor WiFi health
     if (WiFi.status() != WL_CONNECTED) {
@@ -182,8 +178,9 @@ void loop() {
     }
   }
   
-  delay(20); // Reduced for smoother servo movement
+  delay(10); // **REDUCED DELAY FOR BETTER RESPONSIVENESS**
 }
+
 
 // **CLEAR EEPROM FUNCTION**
 void clearEEPROM() {
@@ -619,6 +616,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
   
   Serial.println("MQTT [" + topicStr + "]: " + message);
+  
+  // **KEEP UPDATING TIMEOUT FOR WIFI HEALTH MONITORING ONLY**
   commandTimeout = millis();
   
   JsonDocument doc;

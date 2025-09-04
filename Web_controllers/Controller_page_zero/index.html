@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero Robot Controller - CLEAN UI</title>
+    <title>Zero Robot Controller - CONTINUOUS MODE</title>
     <style>
+        /* Keep all your existing CSS styles */
         :root {
             --bg-color: #f0f0f0;
             --panel-color: #e0e0e0;
@@ -381,6 +382,7 @@
         </div>
     </div>
 
+
 <script>
     // **DEBUG TO BROWSER CONSOLE ONLY**
     function log(message, type = 'info') {
@@ -406,11 +408,15 @@
     let pressedButtons = new Set();
     let commandCount = 0;
     
+    // **CONTINUOUS SENDING VARIABLES**
+    let sendIntervals = new Map(); // Store interval IDs for each button
+    const SEND_INTERVAL_MS = 100; // Send command every 100ms while pressed
+    
     const statusElement = document.getElementById('connectionStatus');
     const speedSlider = document.getElementById('speedSlider');
     const speedValue = document.getElementById('speedValue');
     
-    log('🤖 Zero Robot Controller - Clean UI Started', 'success');
+    log('🤖 Zero Robot Controller - CONTINUOUS MODE Started', 'success');
     log(`📡 Connecting to: ${MQTT_BROKER}`, 'info');
     
     function sendArmCommand(command) {
@@ -461,18 +467,57 @@
         }
     }
     
-    // **SEND ALL MOVEMENT STOP COMMANDS**
-    function sendAllStopCommands() {
+    // **CONTINUOUS SENDING FUNCTIONS**
+    function startContinuousSending(buttonId, cmd, isArmButton) {
+        // Stop any existing interval for this button
+        stopContinuousSending(buttonId);
+        
+        // Send command immediately
+        if (isArmButton) {
+            sendArmCommand(cmd);
+        } else {
+            sendCarCommand(cmd, parseInt(speedSlider.value));
+        }
+        
+        // Start continuous sending
+        const intervalId = setInterval(() => {
+            if (isArmButton) {
+                sendArmCommand(cmd);
+            } else {
+                sendCarCommand(cmd, parseInt(speedSlider.value));
+            }
+        }, SEND_INTERVAL_MS);
+        
+        sendIntervals.set(buttonId, intervalId);
+        log(`CONTINUOUS START: ${cmd} (every ${SEND_INTERVAL_MS}ms)`, 'success');
+    }
+    
+    function stopContinuousSending(buttonId) {
+        const intervalId = sendIntervals.get(buttonId);
+        if (intervalId) {
+            clearInterval(intervalId);
+            sendIntervals.delete(buttonId);
+            log(`CONTINUOUS STOP: ${buttonId}`, 'info');
+        }
+    }
+    
+    function stopAllContinuousSending() {
+        sendIntervals.forEach((intervalId, buttonId) => {
+            clearInterval(intervalId);
+            log(`STOP INTERVAL: ${buttonId}`, 'info');
+        });
+        sendIntervals.clear();
+        
         // Clear all pressed button states
         pressedButtons.clear();
         document.querySelectorAll('button.pressed').forEach(b => {
             b.classList.remove('pressed');
         });
         
-        // Send STOP commands to both ARM and CAR
+        // Send stop commands
         sendArmCommand("S");
         sendCarCommand("S", parseInt(speedSlider.value));
-        log('All movements stopped', 'success');
+        log('All continuous sending stopped', 'success');
     }
     
     // **MQTT CONNECTION - EMQX ONLY**
@@ -531,6 +576,9 @@
                 isConnected = false;
                 statusElement.textContent = 'EMQX Disconnected';
                 statusElement.className = 'connection-status status-disconnected';
+                
+                // Stop all continuous sending when disconnected
+                stopAllContinuousSending();
             });
             
             mqttClient.on('message', (topic, message) => {
@@ -539,8 +587,8 @@
                         const status = JSON.parse(message.toString());
                         log(`Robot: Online, Heap: ${status.system?.free_heap}b`, 'info');
                         
-                        // Log servo positions
-                        if (status.arm?.positions) {
+                        // Log servo positions less frequently to reduce console spam
+                        if (commandCount % 10 === 0 && status.arm?.positions) {
                             const pos = status.arm.positions;
                             log(`Servos A1:${pos.A1}° A2:${pos.A2}° A3:${pos.A3}° A4:${pos.A4}° A5:${pos.A5}°`, 'info');
                         }
@@ -555,7 +603,7 @@
         }
     }
     
-    // Joystick logic
+    // Joystick logic (unchanged)
     const joystick = document.getElementById('joystick');
     const knob = document.getElementById('joystickKnob');
     let dragging = false;
@@ -640,7 +688,7 @@
             log(`Speed: ${value}%`, 'info');
         });
         
-        // **MODIFIED BUTTON HANDLING - ALL STOP ON ARM BUTTON RELEASE**
+        // **MODIFIED BUTTON HANDLING - CONTINUOUS SENDING**
         document.querySelectorAll('button').forEach(function(btn) {
             let cmd = "";
             let isArmButton = false;
@@ -659,7 +707,7 @@
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
                     log('EMERGENCY STOP!', 'error');
-                    sendAllStopCommands();
+                    stopAllContinuousSending();
                 });
                 return;
             }
@@ -668,62 +716,77 @@
             
             log(`Button: ${btn.textContent || btn.id} → ${cmd} (${isArmButton ? 'ARM' : 'CAR'})`, 'info');
             
-            // **PRESS = START COMMAND**
-            function handlePress(eventType) {
-                return function(e) {
-                    e.preventDefault();
-                    if (!pressedButtons.has(btn.id)) {
-                        pressedButtons.add(btn.id);
-                        btn.classList.add('pressed');
-                        log(`PRESS (${eventType}): ${btn.textContent || btn.id} → ${cmd}`, 'command');
-                        
-                        if (isArmButton) {
-                            const success = sendArmCommand(cmd);
-                            if (success) {
-                                log(`ARM START: ${cmd}`, 'success');
-                            }
-                        } else {
-                            const success = sendCarCommand(cmd, parseInt(speedSlider.value));
-                            if (success) {
-                                log(`CAR START: ${cmd}`, 'success');
-                            }
-                        }
+            // **POINTER DOWN = START CONTINUOUS SENDING**
+            btn.addEventListener('pointerdown', function(e) {
+                e.preventDefault();
+                if (!pressedButtons.has(btn.id)) {
+                    pressedButtons.add(btn.id);
+                    btn.classList.add('pressed');
+                    
+                    startContinuousSending(btn.id, cmd, isArmButton);
+                    log(`PRESS: ${btn.textContent || btn.id} → CONTINUOUS ${cmd}`, 'command');
+                }
+            });
+            
+            // **POINTER UP = STOP CONTINUOUS SENDING**
+            btn.addEventListener('pointerup', function(e) {
+                e.preventDefault();
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    stopContinuousSending(btn.id);
+                    
+                    // Send final stop command
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                    } else {
+                        sendCarCommand("S", parseInt(speedSlider.value));
                     }
-                };
-            }
+                    
+                    log(`RELEASE: ${btn.textContent || btn.id} → STOP`, 'info');
+                }
+            });
             
-            // **RELEASE = ALL MOVEMENT STOP (FOR ARM BUTTONS ONLY)**
-            function handleRelease(eventType) {
-                return function(e) {
-                    e.preventDefault();
-                    if (pressedButtons.has(btn.id)) {
-                        log(`RELEASE (${eventType}): ${btn.textContent || btn.id}`, 'info');
-                        
-                        if (isArmButton) {
-                            // **FOR ARM BUTTONS: SEND ALL STOP COMMANDS**
-                            sendAllStopCommands();
-                        } else {
-                            // **FOR CAR BUTTONS: SEND ONLY CAR STOP**
-                            pressedButtons.delete(btn.id);
-                            btn.classList.remove('pressed');
-                            const success = sendCarCommand("S", parseInt(speedSlider.value));
-                            if (success) {
-                                log('CAR STOP sent', 'success');
-                            }
-                        }
+            // **POINTER CANCEL = STOP CONTINUOUS SENDING**
+            btn.addEventListener('pointercancel', function(e) {
+                e.preventDefault();
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    stopContinuousSending(btn.id);
+                    
+                    // Send final stop command
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                    } else {
+                        sendCarCommand("S", parseInt(speedSlider.value));
                     }
-                };
-            }
+                    
+                    log(`CANCEL: ${btn.textContent || btn.id} → STOP`, 'info');
+                }
+            });
             
-            // **MOUSE EVENTS**
-            btn.addEventListener('mousedown', handlePress('mouse'));
-            btn.addEventListener('mouseup', handleRelease('mouse'));
-            btn.addEventListener('mouseleave', handleRelease('mouse-leave'));
-            
-            // **TOUCH EVENTS**
-            btn.addEventListener('touchstart', handlePress('touch'), {passive: false});
-            btn.addEventListener('touchend', handleRelease('touch'), {passive: false});
-            btn.addEventListener('touchcancel', handleRelease('touch-cancel'));
+            // **POINTER LEAVE = STOP CONTINUOUS SENDING**
+            btn.addEventListener('pointerleave', function(e) {
+                e.preventDefault();
+                if (pressedButtons.has(btn.id)) {
+                    pressedButtons.delete(btn.id);
+                    btn.classList.remove('pressed');
+                    
+                    stopContinuousSending(btn.id);
+                    
+                    // Send final stop command
+                    if (isArmButton) {
+                        sendArmCommand("S");
+                    } else {
+                        sendCarCommand("S", parseInt(speedSlider.value));
+                    }
+                    
+                    log(`LEAVE: ${btn.textContent || btn.id} → STOP`, 'info');
+                }
+            });
         });
         
         // Theme toggle
@@ -734,7 +797,12 @@
             log(`Theme: ${document.body.classList.contains('dark') ? 'Dark' : 'Light'}`, 'info');
         });
         
-        log('Zero Robot Controller ready!', 'success');
+        // Emergency cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopAllContinuousSending();
+        });
+        
+        log('Zero Robot Controller - CONTINUOUS MODE ready!', 'success');
     });
 </script>
 </html>
