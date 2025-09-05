@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero Robot Controller - VOICE + CONTINUOUS MODE</title>
+    <title>Zero Robot Controller - SECURE AUDIO MQTT</title>
     <style>
-        /* Keep all your existing CSS styles */
+        /* Your existing CSS styles plus new audio MQTT UI */
         :root {
             --bg-color: #f0f0f0;
             --panel-color: #e0e0e0;
@@ -15,6 +15,7 @@
             --voice-primary: #ff6b6b;
             --voice-recording: #ff0000;
         }
+        
         body {
             display: flex;
             justify-content: center;
@@ -24,6 +25,7 @@
             margin: 0;
             font-family: Arial, sans-serif;
         }
+        
         .connection-status {
             position: fixed;
             top: 10px;
@@ -60,10 +62,74 @@
         .voice-success { background: #28a745; }
         .voice-error { background: #dc3545; }
         
+        /* NEW: Audio Size Indicator */
+        .audio-size-indicator {
+            position: fixed;
+            bottom: 90px;
+            right: 2vw;
+            width: 200px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            display: none;
+            z-index: 999;
+        }
+        
+        .size-bar-container {
+            width: 100%;
+            height: 4px;
+            background: #333;
+            border-radius: 2px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        
+        .size-bar {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #FF9800, #f44336);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .voice-button.size-warning {
+            background: #FF9800 !important;
+            animation: warning-pulse 0.5s infinite;
+        }
+        
+        .voice-button.mqtt-mode {
+            border: 3px solid #00ff00;
+            box-shadow: 0 0 15px rgba(0,255,0,0.5);
+        }
+        
+        /* NEW: MQTT Security Status */
+        .security-status {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            padding: 6px 12px;
+            border-radius: 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 10px;
+            z-index: 1001;
+            background: #17a2b8;
+            display: block;
+        }
+        .security-enabled { background: #28a745; }
+        .security-disabled { background: #dc3545; }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.5; }
             100% { opacity: 1; }
+        }
+        
+        @keyframes warning-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
         
         .extra_parent {
@@ -75,6 +141,7 @@
             flex-direction: row;
             width: 100vw;
         }
+        
         .extra_parent1 {
             display: flex;
             position: absolute;
@@ -84,6 +151,7 @@
             align-items: center;
             flex-direction: row;
         }
+        
         .extra_parent2 {
             display: flex;
             position: absolute;
@@ -93,6 +161,7 @@
             align-items: center;
             flex-direction: row;
         }
+        
         .speed-control {
             display: flex;
             align-items: center;
@@ -103,6 +172,7 @@
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
+        
         .slider {
             -webkit-appearance: none;
             width: 100px;
@@ -112,6 +182,7 @@
             outline: none;
             margin: 0 10px;
         }
+        
         .slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -122,6 +193,7 @@
             cursor: pointer;
             border: 2px solid white;
         }
+        
         .slider::-moz-range-thumb {
             width: 25px;
             height: 25px;
@@ -130,6 +202,7 @@
             cursor: pointer;
             border: 2px solid white;
         }
+        
         #speedValue {
             min-width: 40px;
             text-align: center;
@@ -146,6 +219,7 @@
             align-items: center;
             margin: 10px;
         }
+        
         button {
             width: 10vw;
             height: 20vh;
@@ -159,12 +233,14 @@
             cursor: pointer;
             user-select: none;
         }
+        
         button:active,
         button.pressed {
             background-color: #cccccc;
             transform: scale(0.96);
             box-shadow: 0 2px #666;
         }
+        
         .Stop {
             background-color: red !important;
             color: #fff;
@@ -188,15 +264,18 @@
             transition: all 0.2s;
             touch-action: none;
         }
+        
         .voice-button:hover {
             background: #ff5252;
             transform: scale(1.05);
         }
+        
         .voice-button.recording {
             background: var(--voice-recording);
             animation: pulse 1s infinite;
             transform: scale(1.1);
         }
+        
         .voice-button.processing {
             background: #ffc107;
             color: black;
@@ -221,6 +300,7 @@
             box-shadow: 0 2px 8px #aaa;
             touch-action: none;
         }
+        
         .joystick-knob {
             width: 7vw;
             height: 14vh;
@@ -239,6 +319,7 @@
             touch-action: none;
             box-shadow: 0 10px 15px #a19898;
         }
+        
         .theme-toggle-btn {
             position: fixed;
             left: 2vw;
@@ -256,6 +337,7 @@
             opacity: 0.7;
             transition: background 0.2s, opacity 0.2s;
         }
+        
         .theme-toggle-btn:hover {
             background: #444;
             opacity: 1;
@@ -268,24 +350,29 @@
             --button-bg: #222;
             --button-text: #fff;
         }
+        
         body.dark .joystick-container {
             background: #fff;
             box-shadow: 0 2px 8px #111;
         }
+        
         body.dark .joystick-knob {
             background: red;
             border: 4px solid #000;
             box-shadow: 0 2px 8px #111;
         }
+        
         body.dark button {
             background: #222;
             color: #fff;
             box-shadow: 0 2px 8px #111;
         }
+        
         body.dark .Stop {
             background-color: red !important;
             color: #fff;
         }
+        
         body.dark button:active,
         body.dark button.pressed {
             background-color: #cccccc !important;
@@ -293,13 +380,16 @@
             transform: scale(0.96);
             box-shadow: 0 2px #666;
         }
+        
         body.dark .speed-control {
             background: var(--panel-color);
             color: white;
         }
+        
         body.dark .slider {
             background: #555;
         }
+        
         body.dark .voice-button {
             box-shadow: 0 4px 12px rgba(255,107,107,0.5);
         }
@@ -419,13 +509,26 @@
                 max-width: 250px;
                 font-size: 11px;
             }
+            .audio-size-indicator {
+                width: 180px;
+                bottom: 80px;
+                right: 3vw;
+            }
         }
     </style>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
     <div id="connectionStatus" class="connection-status status-connecting">Connecting...</div>
+    <div id="securityStatus" class="security-status security-enabled">🔒 MQTT Secure</div>
     <div id="voiceStatus" class="voice-status">Voice Ready</div>
+    <div id="audioSizeIndicator" class="audio-size-indicator">
+        <div>Audio Size: <span id="audioSizeText">0KB</span> / 500KB</div>
+        <div class="size-bar-container">
+            <div id="audioSizeBar" class="size-bar"></div>
+        </div>
+        <div id="recordingTime">Recording: 0.0s</div>
+    </div>
     
     <div class="extra_parent">
         <div class="extra_parent1">
@@ -443,7 +546,7 @@
         </div>
     </div>
     <button class="theme-toggle-btn" id="themeToggle" title="Toggle dark mode">D</button>
-    <button class="voice-button" id="voiceButton" title="Hold to record voice command">🎤</button>
+    <button class="voice-button mqtt-mode" id="voiceButton" title="Hold to record voice command via MQTT">🎤</button>
     
     <div class="parent">
         <div class="joystick-container" id="joystick">
@@ -461,7 +564,53 @@
     </div>
 
 <script>
-    // **DEBUG TO BROWSER CONSOLE ONLY**
+    // **SECURITY CONFIGURATION**
+    const SECURITY_TOKEN = "ALICE_ZERO_2024_SECURE"; // Change this to your secret
+    const DEVICE_ID = `WebControl_${Math.random().toString(16).substr(2, 8)}`;
+    
+    // **AUDIO MQTT CONFIGURATION**
+    const MAX_AUDIO_SIZE_KB = 500; // 500KB limit for broker.emqx.io
+    const MAX_AUDIO_SIZE_BYTES = MAX_AUDIO_SIZE_KB * 1024;
+    const MAX_RECORDING_DURATION = 15; // Max 15 seconds
+    
+    // **MQTT TOPICS - Updated for Audio**
+    const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+    const CAR_TOPIC = 'alice/zero/car/command';
+    const ARM_TOPIC = 'alice/zero/arm/command';
+    const ARM_POSITION_TOPIC = 'alice/zero/arm/position';
+    const STATUS_TOPIC = 'alice/zero/robot/status';
+    const AUDIO_TOPIC = 'alice/zero/voice/audio'; // New audio topic
+    const RESPONSE_TOPIC = `alice/zero/voice/response/${DEVICE_ID}`; // Response topic
+    
+    // **VOICE CONTROL VARIABLES**
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let voiceCommandActive = false;
+    let recordingStartTime = 0;
+    let sizeMonitorInterval = null;
+    
+    // **EXISTING VARIABLES**
+    let mqttClient = null;
+    let isConnected = false;
+    let pressedButtons = new Set();
+    let commandCount = 0;
+    let sendIntervals = new Map();
+    const SEND_INTERVAL_MS = 100;
+    
+    // **UI ELEMENTS**
+    const statusElement = document.getElementById('connectionStatus');
+    const securityStatusElement = document.getElementById('securityStatus');
+    const voiceStatusElement = document.getElementById('voiceStatus');
+    const voiceButton = document.getElementById('voiceButton');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+    const audioSizeIndicator = document.getElementById('audioSizeIndicator');
+    const audioSizeText = document.getElementById('audioSizeText');
+    const audioSizeBar = document.getElementById('audioSizeBar');
+    const recordingTimeElement = document.getElementById('recordingTime');
+    
+    // **DEBUG LOGGING**
     function log(message, type = 'info') {
         const timestamp = new Date().toLocaleTimeString();
         const emoji = {
@@ -469,46 +618,241 @@
             'error': '❌', 
             'command': '📤',
             'info': '📝',
-            'voice': '🎤'
+            'voice': '🎤',
+            'security': '🔒',
+            'audio': '🔊'
         };
         console.log(`${emoji[type] || '📝'} [${timestamp}] ${message}`);
     }
     
-    // **SIMPLE: ONLY EMQX BROKER**
-    const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+    // **SECURE AUDIO MQTT CLASS**
+    class SecureAudioMQTT {
+        constructor(mqttClient, maxSizeKB = 500) {
+            this.client = mqttClient;
+            this.maxSizeKB = maxSizeKB;
+            this.maxSizeBytes = maxSizeKB * 1024;
+            this.isRecording = false;
+            this.securityToken = SECURITY_TOKEN;
+            this.deviceId = DEVICE_ID;
+        }
+        
+        async startRecording() {
+            if (this.isRecording || !this.client || !isConnected) {
+                log('Cannot start recording - already recording or MQTT not connected', 'error');
+                return false;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 12000
+                });
+                
+                audioChunks = [];
+                recordingStartTime = Date.now();
+                this.isRecording = true;
+                voiceCommandActive = true;
+                
+                // UI updates
+                voiceButton.classList.add('recording');
+                audioSizeIndicator.style.display = 'block';
+                updateVoiceStatus('🎤 Recording via MQTT...', 'voice-recording');
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        this.updateSizeIndicator();
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    this.processAndSendAudio();
+                };
+                
+                mediaRecorder.start(500);
+                this.startSizeMonitoring();
+                
+                setTimeout(() => {
+                    if (this.isRecording) {
+                        log(`Auto-stop at ${MAX_RECORDING_DURATION}s limit`, 'audio');
+                        this.stopRecording();
+                    }
+                }, MAX_RECORDING_DURATION * 1000);
+                
+                log('Secure audio recording started', 'audio');
+                return true;
+                
+            } catch (error) {
+                log(`Recording failed: ${error.message}`, 'error');
+                updateVoiceStatus('❌ Microphone Error', 'voice-error');
+                this.cleanup();
+                return false;
+            }
+        }
+        
+        stopRecording() {
+            if (!this.isRecording || !mediaRecorder) return;
+            
+            this.isRecording = false;
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            
+            voiceButton.classList.remove('recording');
+            voiceButton.classList.add('processing');
+            updateVoiceStatus('⏳ Sending via MQTT...', 'voice-processing');
+            
+            this.stopSizeMonitoring();
+            log('Recording stopped, processing...', 'audio');
+        }
+        
+        startSizeMonitoring() {
+            sizeMonitorInterval = setInterval(() => {
+                this.updateSizeIndicator();
+                
+                const currentSize = this.getCurrentAudioSize();
+                if (currentSize > this.maxSizeBytes * 0.95) {
+                    log('Size limit approaching, auto-stopping', 'audio');
+                    this.stopRecording();
+                }
+            }, 200);
+        }
+        
+        stopSizeMonitoring() {
+            if (sizeMonitorInterval) {
+                clearInterval(sizeMonitorInterval);
+                sizeMonitorInterval = null;
+            }
+        }
+        
+        getCurrentAudioSize() {
+            return audioChunks.reduce((total, chunk) => total + chunk.size, 0);
+        }
+        
+        updateSizeIndicator() {
+            const currentSize = this.getCurrentAudioSize();
+            const estimatedFinalSize = currentSize * 1.4;
+            const sizeKB = (estimatedFinalSize / 1024).toFixed(1);
+            const percentage = (estimatedFinalSize / this.maxSizeBytes) * 100;
+            const duration = ((Date.now() - recordingStartTime) / 1000).toFixed(1);
+            
+            audioSizeText.textContent = `${sizeKB}KB`;
+            audioSizeBar.style.width = `${Math.min(percentage, 100)}%`;
+            recordingTimeElement.textContent = `Recording: ${duration}s`;
+            
+            if (percentage > 80) {
+                voiceButton.classList.add('size-warning');
+            } else {
+                voiceButton.classList.remove('size-warning');
+            }
+        }
+        
+        async processAndSendAudio() {
+            try {
+                if (audioChunks.length === 0) {
+                    throw new Error('No audio data recorded');
+                }
+                
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const duration = (Date.now() - recordingStartTime) / 1000;
+                
+                log(`Audio recorded: ${duration.toFixed(1)}s, ${(audioBlob.size / 1024).toFixed(1)}KB`, 'audio');
+                
+                if (audioBlob.size > this.maxSizeBytes) {
+                    throw new Error(`Audio too large: ${(audioBlob.size / 1024).toFixed(1)}KB (max: ${this.maxSizeKB}KB)`);
+                }
+                
+                // Convert to base64
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                
+                // Create secure payload
+                const securePayload = {
+                    security_token: this.securityToken,
+                    device_id: this.deviceId,
+                    audio_data: base64Audio,
+                    audio_format: 'audio/webm',
+                    duration: duration,
+                    sample_rate: 16000,
+                    channels: 1,
+                    timestamp: Date.now(),
+                    size_bytes: audioBlob.size,
+                    message_id: `audio_${Date.now()}_${Math.random().toString(16).substr(2, 8)}`
+                };
+                
+                // Send via MQTT
+                const success = this.sendSecureAudioMQTT(securePayload);
+                
+                if (success) {
+                    updateVoiceStatus('✅ Audio sent via MQTT', 'voice-success');
+                    log(`Secure audio sent via MQTT: ${(audioBlob.size / 1024).toFixed(1)}KB`, 'security');
+                } else {
+                    throw new Error('MQTT send failed');
+                }
+                
+            } catch (error) {
+                log(`Audio processing failed: ${error.message}`, 'error');
+                updateVoiceStatus(`❌ ${error.message}`, 'voice-error');
+            }
+            
+            this.cleanup();
+        }
+        
+        sendSecureAudioMQTT(payload) {
+            if (!this.client || !isConnected) {
+                log('MQTT not connected', 'error');
+                return false;
+            }
+            
+            try {
+                const result = this.client.publish(AUDIO_TOPIC, JSON.stringify(payload), { qos: 1 });
+                log(`MQTT Audio Publish - Topic: ${AUDIO_TOPIC}, Size: ${JSON.stringify(payload).length} bytes`, 'audio');
+                return result;
+            } catch (error) {
+                log(`MQTT publish failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        cleanup() {
+            this.isRecording = false;
+            voiceCommandActive = false;
+            voiceButton.classList.remove('recording', 'processing', 'size-warning');
+            audioSizeIndicator.style.display = 'none';
+            this.stopSizeMonitoring();
+            audioChunks = [];
+            
+            if (mediaRecorder && mediaRecorder.stream) {
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+    }
     
-    const CAR_TOPIC = 'alice/zero/car/command';
-    const ARM_TOPIC = 'alice/zero/arm/command';
-    const ARM_POSITION_TOPIC = 'alice/zero/arm/position';
-    const STATUS_TOPIC = 'alice/zero/robot/status';
+    // **INITIALIZE SECURE AUDIO MQTT**
+    let secureAudioMQTT = null;
     
-    // **VOICE CONTROL CONFIGURATION**
-    const VOICE_API_URL = 'http://100.89.24.38:8000'; // Your FastAPI server
+    // **VOICE STATUS FUNCTION**
+    function updateVoiceStatus(message, className = '') {
+        voiceStatusElement.textContent = message;
+        voiceStatusElement.className = `voice-status ${className}`;
+        voiceStatusElement.style.display = 'block';
+        
+        if (className === 'voice-success' || className === 'voice-error') {
+            setTimeout(() => {
+                voiceStatusElement.style.display = 'none';
+            }, 5000);
+        }
+    }
     
-    let mqttClient = null;
-    let isConnected = false;
-    let pressedButtons = new Set();
-    let commandCount = 0;
-    
-    // **VOICE CONTROL VARIABLES**
-    let mediaRecorder = null;
-    let audioChunks = [];
-    let isRecording = false;
-    let voiceCommandActive = false;
-    
-    // **CONTINUOUS SENDING VARIABLES**
-    let sendIntervals = new Map(); // Store interval IDs for each button
-    const SEND_INTERVAL_MS = 100; // Send command every 100ms while pressed
-    
-    const statusElement = document.getElementById('connectionStatus');
-    const voiceStatusElement = document.getElementById('voiceStatus');
-    const voiceButton = document.getElementById('voiceButton');
-    const speedSlider = document.getElementById('speedSlider');
-    const speedValue = document.getElementById('speedValue');
-    
-    log('🤖 Zero Robot Controller - VOICE + CONTINUOUS MODE Started', 'success');
-    log(`📡 Connecting to: ${MQTT_BROKER}`, 'info');
-    
+    // **ALL YOUR EXISTING ROBOT CONTROL FUNCTIONS**
     function sendArmCommand(command) {
         if (!isConnected || !mqttClient) {
             log('MQTT not connected - ARM command ignored', 'error');
@@ -579,171 +923,16 @@
         }
     }
     
-    // **VOICE CONTROL FUNCTIONS**
-    function updateVoiceStatus(message, className = '') {
-        voiceStatusElement.textContent = message;
-        voiceStatusElement.className = `voice-status ${className}`;
-        voiceStatusElement.style.display = 'block';
-        
-        // Auto-hide after 5 seconds for success/error states
-        if (className === 'voice-success' || className === 'voice-error') {
-            setTimeout(() => {
-                voiceStatusElement.style.display = 'none';
-            }, 5000);
-        }
-    }
-    
-    async function startVoiceRecording() {
-        if (isRecording || voiceCommandActive) return;
-        
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    sampleRate: 16000,
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true
-                }
-            });
-            
-            mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/webm;codecs=opus'
-            });
-            audioChunks = [];
-            
-            mediaRecorder.ondataavailable = event => {
-                if (event.data.size > 0) {
-                    audioChunks.push(event.data);
-                }
-            };
-            
-            mediaRecorder.onstop = processVoiceCommand;
-            
-            mediaRecorder.start(100); // Collect data every 100ms
-            isRecording = true;
-            voiceCommandActive = true;
-            
-            voiceButton.classList.add('recording');
-            updateVoiceStatus('🎤 Recording...', 'voice-recording');
-            
-            log('Voice recording started', 'voice');
-            
-        } catch (error) {
-            log(`Voice recording failed: ${error.message}`, 'error');
-            updateVoiceStatus('❌ Microphone Error', 'voice-error');
-        }
-    }
-    
-    function stopVoiceRecording() {
-        if (!isRecording || !mediaRecorder) return;
-        
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        isRecording = false;
-        
-        voiceButton.classList.remove('recording');
-        voiceButton.classList.add('processing');
-        updateVoiceStatus('⏳ Processing...', 'voice-processing');
-        
-        log('Voice recording stopped', 'voice');
-    }
-    
-    async function processVoiceCommand() {
-        if (audioChunks.length === 0) {
-            updateVoiceStatus('❌ No audio recorded', 'voice-error');
-            voiceButton.classList.remove('processing');
-            voiceCommandActive = false;
-            return;
-        }
-        
-        try {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const formData = new FormData();
-            formData.append('audio_file', audioBlob, 'voice_command.webm');
-            
-            log('Sending voice command to API...', 'voice');
-            
-            const response = await fetch(`${VOICE_API_URL}/voice-command`, {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                const commands = result.commands;
-                log(`Voice transcription: "${result.transcription}"`, 'voice');
-                log(`Command type: ${commands.command_type}`, 'voice');
-                log(`Command interpretation: ${commands.interpretation}`, 'voice');
-                
-                // Update speed slider if voice command specifies speed for CAR commands
-                if (commands.speed && commands.car_command && commands.car_command !== "S") {
-                    speedSlider.value = commands.speed;
-                    speedValue.textContent = commands.speed + '%';
-                    log(`Speed updated to: ${commands.speed}%`, 'voice');
-                }
-                
-                // Execute commands directly via MQTT
-                let success = true;
-                
-                // Car command (with speed)
-                if (commands.car_command && commands.car_command !== "S") {
-                    success &= sendCarCommand(commands.car_command, commands.speed || parseInt(speedSlider.value));
-                }
-                
-                // Arm commands (position vs manual)
-                if (commands.command_type === "position" && commands.positions) {
-                    success &= sendArmPositionCommand(commands.positions);
-                } else if (commands.arm_command && commands.arm_command !== "S") {
-                    success &= sendArmCommand(commands.arm_command);
-                }
-                
-                // Auto-stop after duration
-                if (commands.duration && commands.duration > 0) {
-                    setTimeout(() => {
-                        if (commands.car_command && commands.car_command !== "S") {
-                            sendCarCommand("S");
-                        }
-                        if (commands.arm_command && commands.arm_command !== "S") {
-                            sendArmCommand("S");
-                        }
-                        log(`Auto-stop after ${commands.duration}s`, 'voice');
-                    }, commands.duration * 1000);
-                }
-                
-                updateVoiceStatus(`✅ "${result.transcription}" → ${commands.interpretation}`, 'voice-success');
-                
-            } else {
-                throw new Error('Command execution failed');
-            }
-            
-        } catch (error) {
-            log(`Voice command processing failed: ${error.message}`, 'error');
-            updateVoiceStatus('❌ Processing Failed', 'voice-error');
-        }
-        
-        voiceButton.classList.remove('processing');
-        voiceCommandActive = false;
-        audioChunks = [];
-    }
-    
     // **CONTINUOUS SENDING FUNCTIONS**
     function startContinuousSending(buttonId, cmd, isArmButton) {
-        // Stop any existing interval for this button
         stopContinuousSending(buttonId);
         
-        // Send command immediately
         if (isArmButton) {
             sendArmCommand(cmd);
         } else {
             sendCarCommand(cmd, parseInt(speedSlider.value));
         }
         
-        // Start continuous sending
         const intervalId = setInterval(() => {
             if (isArmButton) {
                 sendArmCommand(cmd);
@@ -772,21 +961,19 @@
         });
         sendIntervals.clear();
         
-        // Clear all pressed button states
         pressedButtons.clear();
         document.querySelectorAll('button.pressed').forEach(b => {
             b.classList.remove('pressed');
         });
         
-        // Send stop commands
         sendArmCommand("S");
         sendCarCommand("S", parseInt(speedSlider.value));
         log('All continuous sending stopped', 'success');
     }
     
-    // **MQTT CONNECTION - EMQX ONLY**
+    // **MQTT CONNECTION WITH AUDIO SUPPORT**
     function connectMQTT() {
-        log('Connecting to EMQX broker...', 'info');
+        log('Connecting to EMQX broker with audio support...', 'info');
         statusElement.textContent = 'Connecting to EMQX...';
         statusElement.className = 'connection-status status-connecting';
         
@@ -796,21 +983,29 @@
                 reconnectPeriod: 1000,
                 connectTimeout: 10000,
                 clean: true,
-                clientId: `ZeroRobot_${Math.random().toString(16).substr(2, 8)}`
+                clientId: `ZeroRobotAudio_${Math.random().toString(16).substr(2, 8)}`
             });
             
             mqttClient.on('connect', () => {
-                log('Connected to EMQX broker!', 'success');
+                log('Connected to EMQX broker with audio support!', 'success');
                 isConnected = true;
-                statusElement.textContent = 'Connected: EMQX';
+                statusElement.textContent = 'Connected: EMQX + Audio';
                 statusElement.className = 'connection-status status-connected';
                 
-                // Subscribe to status updates
+                // Initialize secure audio MQTT
+                secureAudioMQTT = new SecureAudioMQTT(mqttClient, MAX_AUDIO_SIZE_KB);
+                
+                // Subscribe to topics
                 mqttClient.subscribe(STATUS_TOPIC, (err) => {
                     if (!err) {
                         log('Subscribed to robot status', 'success');
-                    } else {
-                        log(`Subscribe failed: ${err.message}`, 'error');
+                    }
+                });
+                
+                // Subscribe to response topic for this device
+                mqttClient.subscribe(RESPONSE_TOPIC, (err) => {
+                    if (!err) {
+                        log(`Subscribed to response topic: ${RESPONSE_TOPIC}`, 'success');
                     }
                 });
             });
@@ -840,24 +1035,34 @@
                 isConnected = false;
                 statusElement.textContent = 'EMQX Disconnected';
                 statusElement.className = 'connection-status status-disconnected';
-                
-                // Stop all continuous sending when disconnected
                 stopAllContinuousSending();
             });
             
+            // Handle incoming messages
             mqttClient.on('message', (topic, message) => {
                 if (topic === STATUS_TOPIC) {
                     try {
                         const status = JSON.parse(message.toString());
                         log(`Robot: Online, Heap: ${status.system?.free_heap}b`, 'info');
                         
-                        // Log servo positions less frequently to reduce console spam
                         if (commandCount % 10 === 0 && status.arm?.positions) {
                             const pos = status.arm.positions;
                             log(`Servos A1:${pos.A1}° A2:${pos.A2}° A3:${pos.A3}° A4:${pos.A4}°`, 'info');
                         }
                     } catch (e) {
                         log(`Status parse error: ${e.message}`, 'error');
+                    }
+                } else if (topic === RESPONSE_TOPIC) {
+                    try {
+                        const response = JSON.parse(message.toString());
+                        log(`Response received: ${response.transcription || 'N/A'}`, 'voice');
+                        if (response.success) {
+                            updateVoiceStatus(`✅ "${response.transcription}" processed by AI`, 'voice-success');
+                        } else {
+                            updateVoiceStatus(`❌ ${response.error || 'Processing failed'}`, 'voice-error');
+                        }
+                    } catch (e) {
+                        log(`Response parse error: ${e.message}`, 'error');
                     }
                 }
             });
@@ -867,7 +1072,7 @@
         }
     }
     
-    // Joystick logic (unchanged)
+    // **JOYSTICK LOGIC (UNCHANGED)**
     const joystick = document.getElementById('joystick');
     const knob = document.getElementById('joystickKnob');
     let dragging = false;
@@ -938,9 +1143,9 @@
         }
     }
     
-    // Initialize everything when page loads
+    // **PAGE INITIALIZATION**
     document.addEventListener('DOMContentLoaded', function() {
-        log('Page loaded, connecting to EMQX...', 'success');
+        log('Secure Audio MQTT Controller initializing...', 'success');
         
         connectMQTT();
         resetKnob();
@@ -952,44 +1157,42 @@
             log(`Speed: ${value}%`, 'info');
         });
         
-        // **VOICE BUTTON HANDLERS**
+        // **VOICE BUTTON HANDLERS - Audio MQTT**
         voiceButton.addEventListener('pointerdown', function(e) {
             e.preventDefault();
-            if (!voiceCommandActive) {
-                startVoiceRecording();
+            if (secureAudioMQTT && !voiceCommandActive) {
+                secureAudioMQTT.startRecording();
             }
         });
         
         voiceButton.addEventListener('pointerup', function(e) {
             e.preventDefault();
-            if (isRecording) {
-                stopVoiceRecording();
+            if (secureAudioMQTT && secureAudioMQTT.isRecording) {
+                secureAudioMQTT.stopRecording();
             }
         });
         
         voiceButton.addEventListener('pointerleave', function(e) {
             e.preventDefault();
-            if (isRecording) {
-                stopVoiceRecording();
+            if (secureAudioMQTT && secureAudioMQTT.isRecording) {
+                secureAudioMQTT.stopRecording();
             }
         });
         
         voiceButton.addEventListener('pointercancel', function(e) {
             e.preventDefault();
-            if (isRecording) {
-                stopVoiceRecording();
+            if (secureAudioMQTT && secureAudioMQTT.isRecording) {
+                secureAudioMQTT.stopRecording();
             }
         });
         
-        // **MODIFIED BUTTON HANDLING - CONTINUOUS SENDING**
+        // **BUTTON HANDLING - CONTINUOUS SENDING**
         document.querySelectorAll('button').forEach(function(btn) {
-            // Skip voice button and theme button
             if (btn.id === 'voiceButton' || btn.id === 'themeToggle') return;
             
             let cmd = "";
             let isArmButton = false;
             
-            // Determine command type
             if (btn.id === "Up") { cmd = "U"; isArmButton = true; }
             else if (btn.id === "Down") { cmd = "D"; isArmButton = true; }
             else if (btn.id === "Close") { cmd = "C"; isArmButton = true; }
@@ -999,7 +1202,6 @@
             else if (btn.classList.contains("extra3")) { cmd = "3"; isArmButton = true; }
             else if (btn.classList.contains("extra4")) { cmd = "4"; isArmButton = true; }
             else if (btn.classList.contains("Stop") || btn.id === "Stop1") { 
-                // Emergency stop button
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
                     log('EMERGENCY STOP!', 'error');
@@ -1008,11 +1210,10 @@
                 return;
             }
             
-            if (!cmd) return; // Skip theme toggle and other buttons
+            if (!cmd) return;
             
             log(`Button: ${btn.textContent || btn.id} → ${cmd} (${isArmButton ? 'ARM' : 'CAR'})`, 'info');
             
-            // **POINTER DOWN = START CONTINUOUS SENDING**
             btn.addEventListener('pointerdown', function(e) {
                 e.preventDefault();
                 if (!pressedButtons.has(btn.id)) {
@@ -1024,7 +1225,6 @@
                 }
             });
             
-            // **POINTER UP = STOP CONTINUOUS SENDING**
             btn.addEventListener('pointerup', function(e) {
                 e.preventDefault();
                 if (pressedButtons.has(btn.id)) {
@@ -1033,7 +1233,6 @@
                     
                     stopContinuousSending(btn.id);
                     
-                    // Send final stop command for arm only
                     if (isArmButton) {
                         sendArmCommand("S");
                     } else {
@@ -1044,7 +1243,6 @@
                 }
             });
             
-            // **POINTER CANCEL = STOP CONTINUOUS SENDING**
             btn.addEventListener('pointercancel', function(e) {
                 e.preventDefault();
                 if (pressedButtons.has(btn.id)) {
@@ -1053,7 +1251,6 @@
                     
                     stopContinuousSending(btn.id);
                     
-                    // Send final stop command
                     if (isArmButton) {
                         sendArmCommand("S");
                     } else {
@@ -1064,7 +1261,6 @@
                 }
             });
             
-            // **POINTER LEAVE = STOP CONTINUOUS SENDING**
             btn.addEventListener('pointerleave', function(e) {
                 e.preventDefault();
                 if (pressedButtons.has(btn.id)) {
@@ -1073,7 +1269,6 @@
                     
                     stopContinuousSending(btn.id);
                     
-                    // Send final stop command
                     if (isArmButton) {
                         sendArmCommand("S");
                     } else {
@@ -1102,7 +1297,10 @@
             }
         });
         
-        log('Zero Robot Controller - VOICE + CONTINUOUS MODE ready!', 'success');
+        log('Secure Audio MQTT Controller ready!', 'success');
+        log(`Security Token: ${SECURITY_TOKEN}`, 'security');
+        log(`Audio Limit: ${MAX_AUDIO_SIZE_KB}KB`, 'audio');
+        log(`Device ID: ${DEVICE_ID}`, 'security');
     });
 </script>
 </html>

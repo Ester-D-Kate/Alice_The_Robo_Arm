@@ -178,7 +178,7 @@ void loop() {
     }
   }
   
-  delay(10); // **REDUCED DELAY FOR BETTER RESPONSIVENESS**
+  delay(50); // **REDUCED DELAY FOR BETTER RESPONSIVENESS**
 }
 
 
@@ -819,8 +819,7 @@ void sendCommandToArduino() {
                   "j2," + String(servos[1].currentPosition) + "," +
                   "j3," + String(servos[2].currentPosition) + "," +
                   "j4," + String(servos[3].currentPosition) + "," +
-                  "j5," + String(servos[4].currentPosition) + "," +
-                  "j6,90,j7,90>";
+                  "j5," + String(servos[4].currentPosition) + ">";
   Serial.println(Command);
 }
 
